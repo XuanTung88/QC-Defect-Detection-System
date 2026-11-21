@@ -1,0 +1,147 @@
+<%# defectqc-session.ejs — Chi tiết kết quả 1 session Defect QC scan %>
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/defectqc"><i class="bi bi-shield-exclamation me-1"></i>Defect QC</a></li>
+    <li class="breadcrumb-item active"><%= sessionName %></li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold mb-1"><i class="bi bi-folder2-open me-2 text-warning"></i><%= sessionName %></h3>
+    <p class="text-muted mb-0 small">Module Defect QC — Phát hiện sứt mẻ / vỡ / khuyết tật cấu trúc</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/defectqc/api/session/<%= sessionName %>/export" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất CSV
+    </a>
+    <a href="/defectqc" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Quay lại
+    </a>
+  </div>
+</div>
+
+<!-- Thống kê tổng quan -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card border-0 bg-primary text-white shadow-sm text-center py-3">
+      <div class="fs-2 fw-bold"><%= meta.n_total || 0 %></div>
+      <div class="small">Tổng ảnh</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card border-0 bg-info text-white shadow-sm text-center py-3">
+      <div class="fs-2 fw-bold"><%= (meta.auc_mean || 0).toFixed(3) %></div>
+      <div class="small">AUC ± <%= (meta.auc_std || 0).toFixed(3) %></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card border-0 bg-success text-white shadow-sm text-center py-3">
+      <div class="fs-2 fw-bold"><%= ((meta.recall || 0)*100).toFixed(0) %>%</div>
+      <div class="small">Recall (TP rate)</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card border-0 bg-warning text-dark shadow-sm text-center py-3">
+      <div class="fs-2 fw-bold"><%= ((meta.precision || 0)*100).toFixed(0) %>%</div>
+      <div class="small">Precision</div>
+    </div>
+  </div>
+</div>
+
+<!-- Confusion Matrix nhỏ -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-light border-0 fw-bold">
+    <i class="bi bi-grid-3x3 me-2"></i>Confusion Matrix (ngưỡng k = <%= meta.threshold_k %>)
+  </div>
+  <div class="card-body">
+    <div class="row g-2 text-center" style="max-width:400px;">
+      <div class="col-6"><div class="rounded p-3 bg-success text-white"><strong>TP</strong><br><span class="fs-4"><%= meta.tp || 0 %></span></div></div>
+      <div class="col-6"><div class="rounded p-3 bg-warning text-dark"><strong>FN</strong><br><span class="fs-4"><%= meta.fn || 0 %></span></div></div>
+      <div class="col-6"><div class="rounded p-3 bg-danger text-white"><strong>FP</strong><br><span class="fs-4"><%= meta.fp || 0 %></span></div></div>
+      <div class="col-6"><div class="rounded p-3 bg-secondary text-white"><strong>TN</strong><br><span class="fs-4"><%= meta.tn || 0 %></span></div></div>
+    </div>
+    <% if (meta.skipped && meta.skipped.length > 0) { %>
+      <div class="alert alert-warning mt-3 py-2 small">
+        <i class="bi bi-exclamation-triangle me-1"></i>Bỏ qua <%= meta.skipped.length %> ảnh (phân vùng thất bại):
+        <%= meta.skipped.slice(0,5).join(', ') %><%= meta.skipped.length > 5 ? '...' : '' %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<!-- Bộ lọc -->
+<div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+  <span class="fw-semibold text-muted me-2">Lọc:</span>
+  <button class="btn btn-outline-secondary btn-sm active" onclick="filterItems('all', this)">
+    Tất cả (<span id="countAll"><%= items.length %></span>)
+  </button>
+  <button class="btn btn-outline-danger btn-sm" onclick="filterItems('defect', this)">
+    DEFECT (<span id="countDefect"><%= items.filter(x=>x.pred==='defect').length %></span>)
+  </button>
+  <button class="btn btn-outline-success btn-sm" onclick="filterItems('ok', this)">
+    OK (<span id="countOk"><%= items.filter(x=>x.pred==='ok').length %></span>)
+  </button>
+  <button class="btn btn-outline-warning btn-sm" onclick="filterItems('wrong', this)">
+    Sai (<span id="countWrong"><%= items.filter(x=>x.isCorrect===false).length %></span>)
+  </button>
+</div>
+
+<!-- Gallery ảnh -->
+<div class="row g-3" id="gallery">
+  <% items.forEach((item, idx) => {
+    const badgeColor = item.pred === 'defect' ? 'danger' : 'success';
+    const badgeIcon  = item.pred === 'defect' ? 'bi-x-circle-fill' : 'bi-check-circle-fill';
+    const borderClass = item.isCorrect === false ? 'border border-danger border-2' : '';
+  %>
+  <div class="col-sm-6 col-md-4 col-lg-3 item-card"
+       data-pred="<%= item.pred %>"
+       data-wrong="<%= item.isCorrect === false ? 'true' : 'false' %>">
+    <div class="card shadow-sm h-100 <%= borderClass %>">
+      <div class="position-relative">
+        <img src="<%= item.imgUrl %>" class="card-img-top" style="height:180px;object-fit:contain;background:#111;"
+             alt="<%= item.file %>" loading="lazy"
+             onerror="this.src='/img/placeholder.png'">
+        <span class="position-absolute top-0 end-0 m-2 badge bg-<%= badgeColor %>">
+          <i class="bi <%= badgeIcon %> me-1"></i><%= item.pred.toUpperCase() %>
+        </span>
+        <% if (item.label) { %>
+          <span class="position-absolute top-0 start-0 m-2 badge bg-secondary">GT: <%= item.label.toUpperCase() %></span>
+        <% } %>
+        <% if (item.isCorrect === false) { %>
+          <span class="position-absolute bottom-0 start-0 m-2 badge bg-warning text-dark">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>Sai
+          </span>
+        <% } %>
+      </div>
+      <div class="card-body p-2">
+        <div class="text-truncate small fw-semibold text-muted mb-1" title="<%= item.file %>"><%= item.file %></div>
+        <div class="d-flex flex-wrap gap-1">
+          <span class="badge bg-light text-dark border" title="Điểm bất thường">z=<%= (item.score||0).toFixed(2) %></span>
+          <span class="badge bg-light text-dark border" title="Solidity">S=<%= (item.solidity||0).toFixed(3) %></span>
+          <span class="badge bg-light text-dark border" title="Convexity">Cv=<%= (item.convexity||0).toFixed(3) %></span>
+          <span class="badge bg-light text-dark border" title="Hole ratio">H=<%= (item.hole_ratio||0).toFixed(3) %></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% }) %>
+</div>
+
+<script>
+function filterItems(mode, btn) {
+  document.querySelectorAll('.item-card').forEach(card => {
+    const pred  = card.dataset.pred;
+    const wrong = card.dataset.wrong === 'true';
+    let show = false;
+    if (mode === 'all')    show = true;
+    else if (mode === 'defect') show = pred === 'defect';
+    else if (mode === 'ok')     show = pred === 'ok';
+    else if (mode === 'wrong')  show = wrong;
+    card.classList.toggle('d-none', !show);
+  });
+  document.querySelectorAll('.btn-group-sm button, .d-flex button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>

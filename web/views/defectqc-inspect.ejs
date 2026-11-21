@@ -1,0 +1,201 @@
+<%# defectqc-inspect.ejs — Phân loại ảnh mới chưa có nhãn (Defect QC) %>
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/defectqc"><i class="bi bi-shield-exclamation me-1"></i>Defect QC</a></li>
+    <li class="breadcrumb-item active">Phân Loại Ảnh Mới</li>
+  </ol>
+</nav>
+
+<div class="row mb-4">
+  <div class="col-12">
+    <h3 class="fw-bold mb-1"><i class="bi bi-images me-2 text-primary"></i>Phân Loại Ảnh Mới (Chưa Có Nhãn)</h3>
+    <p class="text-muted mb-0">
+      Upload <strong>ảnh OK chuẩn</strong> (tham chiếu) và <strong>ảnh cần kiểm tra</strong>.
+      Hệ thống hiệu chuẩn từ ảnh OK rồi phân loại từng ảnh mới → <span class="badge bg-success">OK</span> / <span class="badge bg-danger">DEFECT</span>.
+    </p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary bg-opacity-10 border-0">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-upload me-2 text-primary"></i>Upload Ảnh</h5>
+      </div>
+      <div class="card-body">
+        <form id="inspectForm" enctype="multipart/form-data">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-success">Ảnh OK Tham Chiếu (≥ 3)</label>
+            <input type="file" class="form-control" name="ok_ref" multiple accept="image/png,image/jpeg" required>
+            <div class="form-text">Ảnh của sản phẩm đạt chuẩn, dùng để hiệu chuẩn ngưỡng phát hiện.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-primary">Ảnh Cần Phân Loại (≥ 1)</label>
+            <input type="file" class="form-control" name="new_images" multiple accept="image/png,image/jpeg" required>
+            <div class="form-text">Ảnh sản phẩm cần kiểm tra — chưa biết lỗi hay không.</div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Kênh màu</label>
+              <select class="form-select form-select-sm" name="channel">
+                <option value="gray" selected>Grayscale</option>
+                <option value="sat">Saturation</option>
+                <option value="val">Value (HSV)</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Vật sáng hơn nền?</label>
+              <select class="form-select form-select-sm" name="object_bright">
+                <option value="true" selected>Có</option>
+                <option value="false">Không</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Ngưỡng Z (k)</label>
+              <input type="number" class="form-control form-control-sm" name="threshold_k" value="3.0" min="1" max="10" step="0.5">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary fw-semibold w-100" id="btnInspect">
+            <i class="bi bi-play-circle-fill me-1"></i>Bắt đầu Phân Loại
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <!-- Loading -->
+    <div id="loadingArea" class="d-none text-center py-5">
+      <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem;" role="status"></div>
+      <h5 class="fw-bold">Đang phân tích ảnh…</h5>
+      <p class="text-muted small">Phân vùng Otsu → trích đặc trưng sứt mẻ → tính điểm bất thường</p>
+    </div>
+
+    <!-- Khu vực kết quả -->
+    <div id="resultsArea" class="d-none">
+      <!-- Banner tổng quan -->
+      <div class="card shadow-sm border-0 mb-3 bg-primary text-white">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <h5 class="fw-bold mb-0" id="resSummaryTitle">Kết Quả Phân Loại</h5>
+            <div class="text-white-50 small" id="resSummaryDetail"></div>
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            <span class="badge bg-success fs-6 px-3" id="resOkBadge">0 OK</span>
+            <span class="badge bg-danger fs-6 px-3" id="resDefectBadge">0 DEFECT</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="d-flex gap-2 mb-3">
+        <button class="btn btn-outline-secondary btn-sm active" onclick="filterInspect('all',this)">Tất cả</button>
+        <button class="btn btn-outline-danger btn-sm" onclick="filterInspect('defect',this)">Chỉ DEFECT</button>
+        <button class="btn btn-outline-success btn-sm" onclick="filterInspect('ok',this)">Chỉ OK</button>
+      </div>
+
+      <!-- Gallery -->
+      <div class="row g-3" id="inspectGallery"></div>
+    </div>
+
+    <!-- Trạng thái ban đầu (hướng dẫn) -->
+    <div id="initialHelp" class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-arrow-left-circle fs-1 d-block mb-3 text-primary opacity-50"></i>
+        <h6 class="fw-bold">Hướng dẫn</h6>
+        <ol class="text-start d-inline-block small">
+          <li>Upload ảnh sản phẩm <strong>đạt chuẩn</strong> (OK) — ít nhất 3 ảnh</li>
+          <li>Upload ảnh sản phẩm <strong>cần kiểm tra</strong></li>
+          <li>Chọn cấu hình (kênh màu, ngưỡng…)</li>
+          <li>Nhấn <strong>"Bắt đầu Phân Loại"</strong></li>
+        </ol>
+        <div class="alert alert-info d-inline-block text-start mt-3 small px-3 py-2">
+          <i class="bi bi-lightbulb me-1"></i>
+          <strong>Mẹo:</strong> Nếu ảnh chụp trên nền trắng và vật tối → chọn <em>"Vật sáng hơn nền: Không"</em>.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('inspectForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  document.getElementById('btnInspect').disabled = true;
+  document.getElementById('initialHelp').classList.add('d-none');
+  document.getElementById('resultsArea').classList.add('d-none');
+  document.getElementById('loadingArea').classList.remove('d-none');
+
+  try {
+    const fd = new FormData(this);
+    const r  = await fetch('/defectqc/api/inspect', { method: 'POST', body: fd });
+    const data = await r.json();
+    document.getElementById('loadingArea').classList.add('d-none');
+
+    if (!data.success) {
+      document.getElementById('initialHelp').innerHTML =
+        `<div class="alert alert-danger m-3">${data.error}</div>`;
+      document.getElementById('initialHelp').classList.remove('d-none');
+    } else {
+      document.getElementById('resOkBadge').textContent     = `${data.ok_count || 0} OK`;
+      document.getElementById('resDefectBadge').textContent = `${data.defect_count || 0} DEFECT`;
+      document.getElementById('resSummaryTitle').textContent = `Kết Quả — ${data.total} ảnh`;
+      document.getElementById('resSummaryDetail').textContent =
+        `Ngưỡng k=${data.threshold_k} | Bỏ qua: ${(data.skipped||[]).length} ảnh`;
+
+      const gallery = document.getElementById('inspectGallery');
+      gallery.innerHTML = '';
+      (data.results || []).forEach(item => {
+        const isBad   = item.pred === 'defect';
+        const badgeC  = isBad ? 'danger' : 'success';
+        const badgeIc = isBad ? 'bi-x-circle-fill' : 'bi-check-circle-fill';
+        gallery.innerHTML += `
+          <div class="col-sm-6 col-md-4 inspect-card" data-pred="${item.pred}">
+            <div class="card shadow-sm h-100">
+              <div class="position-relative">
+                <img src="${item.imgUrl || ''}" class="card-img-top"
+                     style="height:160px;object-fit:contain;background:#111;"
+                     loading="lazy" alt="${item.file}"
+                     onerror="this.src=''">
+                <span class="position-absolute top-0 end-0 m-2 badge bg-${badgeC}">
+                  <i class="bi ${badgeIc} me-1"></i>${item.pred.toUpperCase()}
+                </span>
+              </div>
+              <div class="card-body p-2">
+                <div class="text-truncate small fw-semibold text-muted mb-1" title="${item.file}">${item.file}</div>
+                <div class="d-flex flex-wrap gap-1">
+                  <span class="badge bg-light text-dark border">z=${(item.score||0).toFixed(2)}</span>
+                  <span class="badge bg-light text-dark border">S=${(item.solidity||0).toFixed(3)}</span>
+                  <span class="badge bg-light text-dark border">Cv=${(item.convexity||0).toFixed(3)}</span>
+                  <span class="badge bg-light text-dark border">H=${(item.hole_ratio||0).toFixed(3)}</span>
+                </div>
+              </div>
+            </div>
+          </div>`;
+      });
+
+      document.getElementById('resultsArea').classList.remove('d-none');
+    }
+  } catch(err) {
+    document.getElementById('loadingArea').classList.add('d-none');
+    document.getElementById('initialHelp').innerHTML =
+      `<div class="alert alert-danger m-3">${err.message}</div>`;
+    document.getElementById('initialHelp').classList.remove('d-none');
+  }
+  document.getElementById('btnInspect').disabled = false;
+});
+
+function filterInspect(mode, btn) {
+  document.querySelectorAll('.inspect-card').forEach(c => {
+    c.classList.toggle('d-none',
+      !(mode === 'all' || c.dataset.pred === mode));
+  });
+  document.querySelectorAll('#resultsArea .btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>

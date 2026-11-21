@@ -1,0 +1,271 @@
+<div class="row mb-4">
+  <div class="col-12">
+    <h2 class="fw-bold mb-1">Kiểm Tra & Phân Loại Khuyết Tật Hàng Loạt</h2>
+    <p class="text-muted">Tải lên hàng loạt ảnh sản phẩm để mô hình tự động phân đoạn, tính toán Convex Hull và đưa ra nhãn OK/DEFECT</p>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title fw-bold mb-0"><i class="bi bi-upload text-primary me-2"></i>1. Chọn Bộ Dữ Liệu & Tải Ảnh Cần Kiểm Tra</h5>
+      </div>
+      <div class="card-body">
+        <form id="inspectionBatchForm">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Bộ dữ liệu đối chiếu:</label>
+              <select class="form-select" id="datasetSelect" name="dataset_id">
+                <% datasets.forEach(d => { %>
+                  <option value="<%= d.id %>"><%= d.name %> - <%= d.description %> (Ngưỡng k=<%= d.threshold_k %>)</option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="col-md-5">
+              <label class="form-label fw-semibold">Chọn hàng loạt ảnh cần phân loại:</label>
+              <input type="file" class="form-control" id="batchFileInput" name="inspection_images" multiple accept="image/png,image/jpeg" required>
+            </div>
+
+            <div class="col-md-3">
+              <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="btnRunInspection">
+                <i class="bi bi-play-circle-fill me-1"></i> Bắt đầu Phân Loại
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading state -->
+<div id="loadingState" class="text-center py-5 d-none">
+  <div class="spinner-border text-primary mb-3" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
+  <h4 class="fw-bold">Đang xử lý phân tích hình ảnh...</h4>
+  <p class="text-muted">Đang áp dụng thuật toán Otsu, Convex Hull, tính toán độ lồi (Solidity) và so khớp ngân hàng ô (PatchBank).</p>
+</div>
+
+<!-- Results Area -->
+<div id="resultsArea" class="d-none">
+  <!-- Summary Banner -->
+  <div class="card shadow-sm mb-4 border-0 bg-primary text-white">
+    <div class="card-body p-4">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <h4 class="fw-bold mb-1" id="resSessionTitle">Kết Quả Phân Loại Hàng Loạt</h4>
+          <p class="mb-0 text-white-50" id="resSessionSub">Hoàn thành phân tích các mẫu ảnh</p>
+        </div>
+        <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex gap-2 justify-content-md-end align-items-center">
+          <span class="badge bg-success fs-6 px-3 py-2" id="resOkBadge">0 OK</span>
+          <span class="badge bg-danger fs-6 px-3 py-2" id="resDefectBadge">0 DEFECT</span>
+          <a href="#" id="btnExportCsv" class="btn btn-light fw-semibold ms-2">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Xuất CSV
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter & Controls -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="btn-group" role="group">
+      <button type="button" class="btn btn-outline-secondary active" onclick="filterResults('all', this)">Tất cả (<span id="countAll">0</span>)</button>
+      <button type="button" class="btn btn-outline-danger" onclick="filterResults('defect', this)">Chỉ Lỗi DEFECT (<span id="countDefect">0</span>)</button>
+      <button type="button" class="btn btn-outline-success" onclick="filterResults('ok', this)">Chỉ Đạt OK (<span id="countOk">0</span>)</button>
+    </div>
+    <div class="text-muted small">
+      Nhấp vào ảnh bất kỳ để xem phân tích chi tiết đặc trưng (Solidity, Hull, Canny)
+    </div>
+  </div>
+
+  <!-- Gallery Grid -->
+  <div class="row g-3" id="galleryContainer"></div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="imageDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalFilename">Chi tiết phân tích ảnh</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6 text-center">
+            <p class="fw-semibold text-muted mb-1">Ảnh đã xử lý & phân tích (Annotated)</p>
+            <div class="border rounded bg-dark p-1">
+              <img id="modalAnnotatedImg" src="" class="img-fluid rounded" style="max-height: 280px;">
+            </div>
+            <small class="text-muted d-block mt-1">Viền xanh dương: Convex Hull &bull; Viền đỏ/xanh lá: Contour vật thể</small>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold">Kết luận:</span>
+              <span id="modalPredictionBadge" class="badge fs-6">OK</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted">Điểm bất thường (Z-score):</span>
+              <span class="fw-bold fs-5" id="modalAnomalyScore">--</span>
+            </div>
+
+            <h6 class="fw-bold border-bottom pb-1 mb-2">Thông số đo đạc hình dạng:</h6>
+            <ul class="list-group list-group-flush small mb-3">
+              <li class="list-group-item d-flex justify-content-between px-0">
+                <span>Tỉ số Convex Hull (Solidity):</span>
+                <strong id="modalSolidity">--</strong>
+              </li>
+              <li class="list-group-item d-flex justify-content-between px-0">
+                <span>Độ tròn (Circularity):</span>
+                <strong id="modalCircularity">--</strong>
+              </li>
+              <li class="list-group-item d-flex justify-content-between px-0">
+                <span>Mật độ biên (Edge Density):</span>
+                <strong id="modalEdgeDensity">--</strong>
+              </li>
+              <li class="list-group-item d-flex justify-content-between px-0">
+                <span>Cường độ Sobel trung bình:</span>
+                <strong id="modalSobel">--</strong>
+              </li>
+              <li class="list-group-item d-flex justify-content-between px-0">
+                <span>Độ lệch chuẩn mức xám:</span>
+                <strong id="modalGrayStd">--</strong>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentResults = [];
+
+  document.getElementById('inspectionBatchForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('batchFileInput');
+    if (!fileInput.files || fileInput.files.length === 0) {
+      alert('Vui lòng chọn ít nhất 1 ảnh để kiểm tra!');
+      return;
+    }
+
+    const formData = new FormData(this);
+    document.getElementById('resultsArea').classList.add('d-none');
+    document.getElementById('loadingState').classList.remove('d-none');
+    document.getElementById('btnRunInspection').disabled = true;
+
+    try {
+      const res = await fetch('/inspection/api/run', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      currentResults = data.results || [];
+      renderBatchResults(data);
+    } catch (err) {
+      alert('Lỗi kiểm tra ảnh: ' + err.message);
+    } finally {
+      document.getElementById('loadingState').classList.add('d-none');
+      document.getElementById('btnRunInspection').disabled = false;
+    }
+  });
+
+  function renderBatchResults(data) {
+    document.getElementById('resSessionTitle').innerText = `Kết quả: ${data.name}`;
+    document.getElementById('resSessionSub').innerText = `Tổng số: ${data.total_images} ảnh | Ngưỡng k = ${data.threshold_used}`;
+    document.getElementById('resOkBadge').innerText = `${data.ok_count} OK`;
+    document.getElementById('resDefectBadge').innerText = `${data.defect_count} DEFECT`;
+    document.getElementById('btnExportCsv').href = `/inspection/api/${data.inspection_id}/export`;
+
+    document.getElementById('countAll').innerText = data.total_images;
+    document.getElementById('countDefect').innerText = data.defect_count;
+    document.getElementById('countOk').innerText = data.ok_count;
+
+    renderGallery(currentResults);
+    document.getElementById('resultsArea').classList.remove('d-none');
+  }
+
+  function renderGallery(items) {
+    const container = document.getElementById('galleryContainer');
+    container.innerHTML = '';
+
+    items.forEach((item, index) => {
+      const isDefect = item.prediction === 'defect';
+      const col = document.createElement('div');
+      col.className = `col-sm-6 col-md-4 col-xl-3 gallery-item item-${item.prediction}`;
+
+      const card = document.createElement('div');
+      card.className = `card gallery-card shadow-sm h-100 ${isDefect ? 'border-danger' : 'border-success'}`;
+      card.style.cursor = 'pointer';
+      card.onclick = () => openImageDetail(index);
+
+      const imgSrc = item.annotated_path ? (item.annotated_path.startsWith('/') ? item.annotated_path : `/uploads/results/${item.annotated_path}`) : '';
+
+      card.innerHTML = `
+        <div class="position-relative">
+          <img src="${imgSrc || 'https://via.placeholder.com/250x190?text=No+Image'}" class="gallery-thumb" alt="${item.filename}">
+          <span class="position-absolute top-0 end-0 m-2 badge ${isDefect ? 'badge-defect' : 'badge-ok'} fs-7">
+            ${isDefect ? '<i class="bi bi-x-circle me-1"></i> DEFECT' : '<i class="bi bi-check-circle me-1"></i> OK'}
+          </span>
+        </div>
+        <div class="card-body p-2 d-flex justify-content-between align-items-center">
+          <div class="text-truncate me-2">
+            <small class="fw-bold d-block text-truncate" title="${item.filename}">${item.filename}</small>
+            <small class="text-muted">Solidity: ${item.features?.solidity ? item.features.solidity.toFixed(3) : '--'}</small>
+          </div>
+          <span class="badge ${isDefect ? 'bg-danger bg-opacity-10 text-danger' : 'bg-success bg-opacity-10 text-success'}">
+            z=${item.anomaly_score !== null ? item.anomaly_score.toFixed(2) : '--'}
+          </span>
+        </div>
+      `;
+
+      col.appendChild(card);
+      container.appendChild(col);
+    });
+  }
+
+  function filterResults(type, btn) {
+    document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const items = document.querySelectorAll('.gallery-item');
+    items.forEach(el => {
+      if (type === 'all') {
+        el.classList.remove('d-none');
+      } else if (type === 'defect') {
+        el.classList.toggle('d-none', !el.classList.contains('item-defect'));
+      } else if (type === 'ok') {
+        el.classList.toggle('d-none', !el.classList.contains('item-ok'));
+      }
+    });
+  }
+
+  function openImageDetail(index) {
+    const item = currentResults[index];
+    if (!item) return;
+
+    document.getElementById('modalFilename').innerText = item.filename;
+    document.getElementById('modalAnnotatedImg').src = item.annotated_path || '';
+    
+    const isDefect = item.prediction === 'defect';
+    const badge = document.getElementById('modalPredictionBadge');
+    badge.className = `badge fs-6 ${isDefect ? 'bg-danger' : 'bg-success'}`;
+    badge.innerText = isDefect ? 'KHUYẾT TẬT (DEFECT)' : 'ĐẠT TIÊU CHUẨN (OK)';
+
+    document.getElementById('modalAnomalyScore').innerText = item.anomaly_score !== null ? item.anomaly_score.toFixed(3) : '--';
+    document.getElementById('modalSolidity').innerText = item.features?.solidity ? item.features.solidity.toFixed(4) : '--';
+    document.getElementById('modalCircularity').innerText = item.features?.circularity ? item.features.circularity.toFixed(4) : '--';
+    document.getElementById('modalEdgeDensity').innerText = item.features?.edge_density ? item.features.edge_density.toFixed(4) : '--';
+    document.getElementById('modalSobel').innerText = item.features?.sobel_mean ? item.features.sobel_mean.toFixed(2) : '--';
+    document.getElementById('modalGrayStd').innerText = item.features?.gray_std ? item.features.gray_std.toFixed(2) : '--';
+
+    const modal = new bootstrap.Modal(document.getElementById('imageDetailModal'));
+    modal.show();
+  }
+</script>

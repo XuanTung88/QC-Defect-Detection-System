@@ -1,0 +1,452 @@
+<%
+const stepOrder = ['pending','explore','evaluate','benchmark','ready'];
+const currentIdx = stepOrder.indexOf(dataset.pipeline_step || 'pending');
+
+const steps = [
+  {
+    key: 'explore', label: 'Bước 1: Explore', icon: 'bi-eye',
+    color: 'info', desc: 'Trực quan hóa phân vùng Otsu + Convex Hull trên mẫu ảnh đại diện',
+    requiredStep: 'pending'
+  },
+  {
+    key: 'evaluate', label: 'Bước 2: Evaluate', icon: 'bi-bar-chart-line',
+    color: 'primary', desc: 'Đánh giá one-class z-score, tính AUC từng đặc trưng (solidity, circularity...)',
+    requiredStep: 'explore'
+  },
+  {
+    key: 'benchmark', label: 'Bước 3: Benchmark', icon: 'bi-trophy',
+    color: 'warning', desc: 'So sánh 5 phương pháp phân loại qua cross-validation (AUC, TPR@FPR10%)',
+    requiredStep: 'evaluate'
+  },
+  {
+    key: 'report', label: 'Bước 4: Report', icon: 'bi-clipboard-data',
+    color: 'danger', desc: 'Phân tích lỗi FN/FP/TP, tạo ảnh báo cáo kết quả cuối',
+    requiredStep: 'benchmark'
+  }
+];
+
+function isStepDone(key) {
+  const doneSteps = { explore: ['explore','evaluate','benchmark','ready'], evaluate: ['evaluate','benchmark','ready'], benchmark: ['benchmark','ready'], report: ['ready'] };
+  return doneSteps[key]?.includes(dataset.pipeline_step);
+}
+function isStepEnabled(requiredStep) {
+  if (requiredStep === 'pending') return true;
+  return stepOrder.indexOf(dataset.pipeline_step) >= stepOrder.indexOf(requiredStep);
+}
+%>
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/pipeline"><i class="bi bi-diagram-3 me-1"></i>Pipeline</a></li>
+    <li class="breadcrumb-item active"><%= dataset.name %></li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2 class="fw-bold mb-1 text-capitalize">
+      <i class="bi bi-layers me-2 text-primary"></i><%= dataset.name %>
+    </h2>
+    <p class="text-muted mb-0"><%= dataset.description || 'Không có mô tả' %></p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <% if (dataset.pipeline_step === 'ready') { %>
+      <span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>Sẵn sàng Phân loại</span>
+      <a href="/inspection" class="btn btn-success">
+        <i class="bi bi-images me-1"></i>Phân Loại Ảnh Mới
+      </a>
+    <% } else { %>
+      <span class="badge bg-secondary fs-6">Pipeline chưa hoàn thành</span>
+    <% } %>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Cột trái: 4 bước pipeline -->
+  <div class="col-lg-5">
+    <!-- Upload ảnh (chỉ hiện nếu không phải dataset gốc) -->
+    <% if (!['biscuits','hazelnut','pills'].includes(dataset.name)) { %>
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-light"><i class="bi bi-upload me-2"></i><strong>Upload Ảnh Huấn Luyện</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Yêu cầu: ≥ 7 ảnh OK và ≥ 5 ảnh Defect</p>
+        <div class="row g-2 text-center mb-3">
+          <div class="col-6"><span class="badge bg-success fs-6"><%= counts.ok_count %></span><div class="small text-muted">Ảnh OK</div></div>
+          <div class="col-6"><span class="badge bg-danger fs-6"><%= counts.defect_count %></span><div class="small text-muted">Ảnh Defect</div></div>
+        </div>
+        <form id="uploadForm" enctype="multipart/form-data">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold text-success">Ảnh OK</label>
+            <input type="file" name="ok_images" class="form-control form-control-sm" multiple accept="image/*">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold text-danger">Ảnh Defect</label>
+            <input type="file" name="defect_images" class="form-control form-control-sm" multiple accept="image/*">
+          </div>
+          <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+            <i class="bi bi-cloud-upload me-1"></i>Upload
+          </button>
+        </form>
+        <div id="uploadResult" class="mt-2"></div>
+      </div>
+    </div>
+    <% } else { %>
+    <div class="alert alert-success py-2 small mb-3">
+      <i class="bi bi-check-circle me-1"></i>
+      Dataset gốc <strong><%= dataset.name %></strong> — sử dụng dữ liệu có sẵn trong <code>data/<%= dataset.name %>/</code>
+    </div>
+    <% } %>
+
+    <!-- 4 bước pipeline -->
+    <% steps.forEach((step, idx) => { %>
+    <%
+      const done = isStepDone(step.key);
+      const enabled = isStepEnabled(step.requiredStep);
+    %>
+    <div class="card shadow-sm border-0 mb-3 step-card" id="card-<%= step.key %>">
+      <div class="card-header d-flex justify-content-between align-items-center bg-<%= done ? step.color : 'light' %> <%= done ? 'text-white' : '' %>">
+        <span class="fw-semibold">
+          <i class="bi <%= step.icon %> me-2"></i><%= step.label %>
+        </span>
+        <% if (done) { %>
+          <span class="badge bg-white text-<%= step.color %>"><i class="bi bi-check-circle-fill me-1"></i>Hoàn thành</span>
+        <% } else if (!enabled) { %>
+          <span class="badge bg-secondary">Bị khóa</span>
+        <% } else { %>
+          <span class="badge bg-warning text-dark">Chưa chạy</span>
+        <% } %>
+      </div>
+      <div class="card-body py-2">
+        <p class="text-muted small mb-2"><%= step.desc %></p>
+        <div class="d-grid gap-2">
+          <button class="btn btn-sm btn-<%= done ? 'outline-'+step.color : step.color %> step-btn"
+                  data-step="<%= step.key %>"
+                  data-id="<%= dataset.id %>"
+                  <%= !enabled ? 'disabled' : '' %>>
+            <i class="bi bi-<%= done ? 'arrow-clockwise' : 'play-fill' %> me-1"></i>
+            <%= done ? 'Chạy lại' : 'Chạy' %> <%= step.label %>
+          </button>
+          <% if (done && step.key === 'evaluate') { %>
+            <a href="/pipeline/<%= dataset.id %>/annotated" class="btn btn-sm btn-primary">
+              <i class="bi bi-grid-3x3-gap me-1"></i>Xem Output Annotated (<%= annotatedCount %> ảnh)
+            </a>
+          <% } else if (done && step.key === 'benchmark') { %>
+            <a href="/pipeline/<%= dataset.id %>/annotated-v2" class="btn btn-sm btn-warning text-dark fw-semibold">
+              <i class="bi bi-grid-3x3-gap-fill me-1"></i>Xem Output Annotated v2 (<%= annotatedV2Count %> ảnh)
+            </a>
+          <% } else if (done && step.key === 'report') { %>
+            <a href="/pipeline/<%= dataset.id %>/report-table" class="btn btn-sm btn-danger">
+              <i class="bi bi-table me-1"></i>Xem Report &amp; Table (Bước 4)
+            </a>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <!-- Cột phải: Kết quả / hình ảnh -->
+  <div class="col-lg-7">
+    <!-- Loading spinner -->
+    <div id="loadingPanel" class="d-none text-center py-5">
+      <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem" role="status"></div>
+      <p class="text-muted" id="loadingText">Đang xử lý...</p>
+      <small class="text-muted">Pipeline có thể mất vài phút, vui lòng chờ</small>
+    </div>
+
+    <!-- Kết quả -->
+    <div id="resultPanel">
+      <!-- Explore figure -->
+      <% if (figureUrls.explore) { %>
+      <div class="card shadow-sm border-0 mb-3" id="result-explore">
+        <div class="card-header bg-info text-white"><i class="bi bi-eye me-2"></i>Kết quả Explore</div>
+        <div class="card-body p-2 text-center">
+          <img src="<%= figureUrls.explore %>" class="img-fluid rounded" alt="Explore Figure"
+               style="max-height:500px;cursor:pointer" onclick="showFullImg(this.src)">
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Evaluate AUC table -->
+      <% if (evalData) { %>
+      <div class="card shadow-sm border-0 mb-3" id="result-evaluate">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-bar-chart-line me-2"></i>Kết quả Evaluate (AUC)</span>
+          <a href="/pipeline/<%= dataset.id %>/annotated" class="btn btn-sm btn-light fw-semibold">
+            <i class="bi bi-images me-1"></i>Xem Output Annotated (<%= annotatedCount %>)
+          </a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light"><tr><th>Đặc trưng</th><th>AUC mean</th><th>AUC std</th></tr></thead>
+              <tbody>
+                <% Object.entries(evalData).forEach(([k,v]) => { %>
+                <tr>
+                  <td><code><%= k %></code></td>
+                  <td><strong class="text-<%= v.mean > 0.75 ? 'success' : v.mean > 0.6 ? 'warning' : 'danger' %>"><%= v.mean.toFixed(4) %></strong></td>
+                  <td class="text-muted">± <%= v.std.toFixed(4) %></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <% if (figureUrls.eval) { %>
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body p-2 text-center">
+          <img src="<%= figureUrls.eval %>" class="img-fluid rounded" alt="Eval Figure"
+               style="max-height:400px;cursor:pointer" onclick="showFullImg(this.src)">
+        </div>
+      </div>
+      <% } %>
+      <% } %>
+
+      <!-- Benchmark results -->
+      <% if (benchData) { %>
+      <div class="card shadow-sm border-0 mb-3" id="result-benchmark">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-trophy me-2"></i>Kết quả Benchmark</span>
+          <a href="/pipeline/<%= dataset.id %>/annotated-v2" class="btn btn-sm btn-dark fw-semibold">
+            <i class="bi bi-images me-1"></i>Xem Output Annotated v2 (<%= annotatedV2Count %>)
+          </a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light"><tr><th>Phương pháp</th><th>AUC mean</th><th>AUC std</th><th>TPR@FPR10%</th></tr></thead>
+              <tbody>
+                <% if (benchData.methods) Object.entries(benchData.methods).forEach(([m,v]) => { %>
+                <tr class="<%= benchData.annot_method===m ? 'table-warning fw-semibold' : '' %>">
+                  <td><%= m %> <%= benchData.annot_method===m ? '⭐' : '' %></td>
+                  <td class="text-<%= v.auc?.[0] > 0.75 ? 'success' : 'warning' %>"><%= v.auc?.[0]?.toFixed(4) ?? '—' %></td>
+                  <td class="text-muted"><%= v.auc?.[1]?.toFixed(4) ?? '—' %></td>
+                  <td><%= v.tpr10?.[0]?.toFixed(4) ?? '—' %></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <% if (figureUrls.bench) { %>
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body p-2 text-center">
+          <img src="<%= figureUrls.bench %>" class="img-fluid rounded" alt="Benchmark Figure"
+               style="max-height:400px;cursor:pointer" onclick="showFullImg(this.src)">
+        </div>
+      </div>
+      <% } %>
+      <% } %>
+
+      <!-- Report errors figure -->
+      <% if (figureUrls.errors) { %>
+      <div class="card shadow-sm border-0 mb-3" id="result-report">
+        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-clipboard-data me-2"></i>Kết quả Report (FN/FP/TP)</span>
+          <a href="/pipeline/<%= dataset.id %>/report-table" class="btn btn-sm btn-light fw-semibold">
+            <i class="bi bi-table me-1"></i>Xem Chi Tiết &amp; Table
+          </a>
+        </div>
+        <div class="card-body p-2 text-center">
+          <img src="<%= figureUrls.errors %>" class="img-fluid rounded" alt="Error Report Figure"
+               style="max-height:500px;cursor:pointer" onclick="showFullImg(this.src)">
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Placeholder nếu chưa có kết quả -->
+      <% if (!figureUrls.explore && !evalData && !benchData && !figureUrls.errors) { %>
+      <div class="text-center py-5 text-muted" id="emptyState">
+        <i class="bi bi-play-circle display-3 mb-3 text-primary"></i>
+        <h5>Chưa có kết quả</h5>
+        <p>Nhấn <strong>Chạy</strong> từng bước theo thứ tự từ Bước 1 đến Bước 4</p>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Modal xem ảnh lớn -->
+<div class="modal fade" id="imgModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body text-center p-2">
+        <img id="imgModalSrc" src="" class="img-fluid" alt="">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATASET_ID = '<%= dataset.id %>';
+
+function showFullImg(src) {
+  document.getElementById('imgModalSrc').src = src;
+  new bootstrap.Modal(document.getElementById('imgModal')).show();
+}
+
+function showLoading(text) {
+  document.getElementById('loadingPanel').classList.remove('d-none');
+  document.getElementById('loadingText').textContent = text || 'Đang xử lý...';
+  document.getElementById('emptyState') && (document.getElementById('emptyState').style.display='none');
+}
+function hideLoading() {
+  document.getElementById('loadingPanel').classList.add('d-none');
+}
+
+function showAlert(msg, type='danger') {
+  const el = document.createElement('div');
+  el.className = `alert alert-${type} alert-dismissible fade show mt-3`;
+  el.innerHTML = `${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+  document.getElementById('resultPanel').prepend(el);
+}
+
+async function runStep(step, btnEl) {
+  btnEl.disabled = true;
+  const originalHtml = btnEl.innerHTML;
+  btnEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang chạy...';
+
+  const labels = {
+    explore: 'Đang chạy Explore (phân vùng + Convex Hull)...',
+    evaluate: 'Đang chạy Evaluate (tính AUC one-class)...',
+    benchmark: 'Đang chạy Benchmark (5 phương pháp cross-val)... có thể mất 3-5 phút',
+    report: 'Đang chạy Report (phân tích FN/FP/TP)...'
+  };
+  showLoading(labels[step] || 'Đang xử lý...');
+
+  try {
+    const resp = await fetch(`/pipeline/${DATASET_ID}/${step}`, { method: 'POST' });
+    const data = await resp.json();
+    hideLoading();
+
+    if (!data.success) {
+      showAlert(`<strong>Lỗi Bước ${step}:</strong> ${data.error}`);
+      btnEl.disabled = false;
+      btnEl.innerHTML = originalHtml;
+      return;
+    }
+
+    // Hiển thị kết quả inline
+    renderStepResult(step, data);
+
+    // Reload sau 1 giây để cập nhật trạng thái
+    setTimeout(() => location.reload(), 1200);
+
+  } catch(e) {
+    hideLoading();
+    showAlert(`Lỗi kết nối: ${e.message}`);
+    btnEl.disabled = false;
+    btnEl.innerHTML = originalHtml;
+  }
+}
+
+function renderStepResult(step, data) {
+  const panel = document.getElementById('resultPanel');
+
+  if (step === 'explore' && data.figure_path) {
+    const fig = data.figure_path.replace(/\\/g, '/');
+    const webPath = '/python-outputs/figures/' + fig.split('/').pop();
+    const div = document.createElement('div');
+    div.className = 'card shadow-sm border-0 mb-3 border-info';
+    div.innerHTML = `
+      <div class="card-header bg-info text-white"><i class="bi bi-eye me-2"></i>Kết quả Explore</div>
+      <div class="card-body p-2 text-center">
+        <img src="${webPath}?t=${Date.now()}" class="img-fluid rounded" alt="Explore Figure"
+             style="max-height:500px;cursor:pointer" onclick="showFullImg(this.src)">
+        <div class="mt-2 text-muted small">OK: ${data.total_ok} | Defect: ${data.total_defect} | Processed: ${data.processed || (data.samples||[]).length}</div>
+      </div>`;
+    panel.prepend(div);
+  }
+
+  if (step === 'evaluate' && data.auc) {
+    let rows = Object.entries(data.auc).map(([k,v]) =>
+      `<tr><td><code>${k}</code></td><td><strong>${v.mean.toFixed(4)}</strong></td><td class="text-muted">± ${v.std.toFixed(4)}</td></tr>`
+    ).join('');
+    const div = document.createElement('div');
+    div.className = 'card shadow-sm border-0 mb-3';
+    div.innerHTML = `
+      <div class="card-header bg-primary text-white"><i class="bi bi-bar-chart-line me-2"></i>Kết quả Evaluate</div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light"><tr><th>Đặc trưng</th><th>AUC mean</th><th>AUC std</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    panel.prepend(div);
+  }
+
+  if (step === 'benchmark' && data.result) {
+    const r = data.result;
+    let rows = '';
+    if (r.methods) {
+      rows = Object.entries(r.methods).map(([m,v]) =>
+        `<tr class="${r.annot_method===m?'table-warning fw-semibold':''}">
+           <td>${m} ${r.annot_method===m?'⭐':''}</td>
+           <td>${v.auc?.[0]?.toFixed(4)??'—'}</td>
+           <td class="text-muted">${v.auc?.[1]?.toFixed(4)??'—'}</td>
+           <td>${v.tpr10?.[0]?.toFixed(4)??'—'}</td>
+         </tr>`
+      ).join('');
+    }
+    const div = document.createElement('div');
+    div.className = 'card shadow-sm border-0 mb-3';
+    div.innerHTML = `
+      <div class="card-header bg-warning text-dark"><i class="bi bi-trophy me-2"></i>Kết quả Benchmark</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Phương pháp</th><th>AUC mean</th><th>AUC std</th><th>TPR@FPR10%</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    panel.prepend(div);
+  }
+
+  if (step === 'report' && data.errors_figure_path) {
+    const fname = data.errors_figure_path.split(/[/\\]/).pop();
+    const div = document.createElement('div');
+    div.className = 'card shadow-sm border-0 mb-3';
+    div.innerHTML = `
+      <div class="card-header bg-danger text-white"><i class="bi bi-clipboard-data me-2"></i>Kết quả Report (FN/FP/TP)</div>
+      <div class="card-body p-2 text-center">
+        <img src="/python-outputs/figures/${fname}?t=${Date.now()}" class="img-fluid rounded" alt="Error Report"
+             style="max-height:500px;cursor:pointer" onclick="showFullImg(this.src)">
+        <div class="mt-2 small text-muted">${data.stats_summary || ''} | Phương pháp tốt nhất: <strong>${data.best_method||'—'}</strong></div>
+      </div>`;
+    panel.prepend(div);
+  }
+
+  showAlert(`✅ Bước <strong>${step}</strong> hoàn thành!`, 'success');
+}
+
+// Upload form
+<% if (!['biscuits','hazelnut','pills'].includes(dataset.name)) { %>
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang upload...';
+  const fd = new FormData(e.target);
+  try {
+    const resp = await fetch(`/pipeline/${DATASET_ID}/upload`, { method: 'POST', body: fd });
+    const data = await resp.json();
+    document.getElementById('uploadResult').innerHTML =
+      data.success
+        ? `<div class="alert alert-success py-1 small">${data.message} (OK: ${data.counts.ok_count}, Defect: ${data.counts.defect_count})</div>`
+        : `<div class="alert alert-danger py-1 small">${data.error}</div>`;
+  } catch(e) {
+    document.getElementById('uploadResult').innerHTML = `<div class="alert alert-danger py-1 small">${e.message}</div>`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>Upload';
+});
+<% } %>
+
+// Gắn sự kiện cho các nút bước
+document.querySelectorAll('.step-btn').forEach(btn => {
+  btn.addEventListener('click', () => runStep(btn.dataset.step, btn));
+});
+</script>

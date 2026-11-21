@@ -1,0 +1,60 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <a href="/inspection" class="btn btn-sm btn-outline-secondary mb-2"><i class="bi bi-arrow-left me-1"></i> Quay lại danh sách</a>
+    <h2 class="fw-bold mb-1"><%= inspection.name %></h2>
+    <p class="text-muted mb-0">Bộ dữ liệu: <strong><%= inspection.dataset_name %></strong> &bull; Ngày tạo: <%= new Date(inspection.created_at).toLocaleString('vi-VN') %></p>
+  </div>
+  <div>
+    <a href="/inspection/api/<%= inspection.id %>/export" class="btn btn-outline-primary">
+      <i class="bi bi-download me-1"></i> Tải Báo Cáo CSV
+    </a>
+  </div>
+</div>
+
+<!-- Summary Card -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card p-3 shadow-sm border-0 bg-primary text-white text-center">
+      <span class="small text-white-50">TỔNG SỐ MẪU</span>
+      <h3 class="fw-bold mb-0 mt-1"><%= inspection.total_images %></h3>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card p-3 shadow-sm border-0 bg-success text-white text-center">
+      <span class="small text-white-50">MẪU ĐẠT CHUẨN (OK)</span>
+      <h3 class="fw-bold mb-0 mt-1"><%= inspection.ok_count %></h3>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card p-3 shadow-sm border-0 bg-danger text-white text-center">
+      <span class="small text-white-50">MẪU KHUYẾT TẬT (DEFECT)</span>
+      <h3 class="fw-bold mb-0 mt-1"><%= inspection.defect_count %></h3>
+    </div>
+  </div>
+</div>
+
+<!-- Results Gallery -->
+<div class="row g-3">
+  <% results.forEach(item => { %>
+    <% const isDefect = item.prediction === 'defect'; %>
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <div class="card gallery-card shadow-sm h-100 <%= isDefect ? 'border-danger' : 'border-success' %>">
+        <div class="position-relative">
+          <img src="<%= item.annotated_path || 'https://via.placeholder.com/250x190?text=No+Image' %>" class="gallery-thumb" alt="<%= item.filename %>">
+          <span class="position-absolute top-0 end-0 m-2 badge <%= isDefect ? 'badge-defect' : 'badge-ok' %>">
+            <%= isDefect ? 'DEFECT' : 'OK' %>
+          </span>
+        </div>
+        <div class="card-body p-2 d-flex justify-content-between align-items-center">
+          <div class="text-truncate me-2">
+            <small class="fw-bold d-block text-truncate" title="<%= item.filename %>"><%= item.filename %></small>
+            <small class="text-muted">Solidity: <%= item.solidity ? item.solidity.toFixed(3) : '--' %></small>
+          </div>
+          <span class="badge <%= isDefect ? 'bg-danger bg-opacity-10 text-danger' : 'bg-success bg-opacity-10 text-success' %>">
+            z=<%= item.anomaly_score !== null ? item.anomaly_score.toFixed(2) : '--' %>
+          </span>
+        </div>
+      </div>
+    </div>
+  <% }) %>
+</div>

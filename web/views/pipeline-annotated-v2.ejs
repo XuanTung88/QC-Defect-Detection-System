@@ -1,0 +1,295 @@
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/pipeline"><i class="bi bi-diagram-3 me-1"></i>Pipeline</a></li>
+    <li class="breadcrumb-item"><a href="/pipeline/<%= dataset.id %>"><%= dataset.name %></a></li>
+    <li class="breadcrumb-item active">Output Bước 3 (outputs/annotated_v2/<%= dataset.name %>)</li>
+  </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">
+      <i class="bi bi-grid-3x3-gap-fill me-2 text-warning"></i>Output Bước 3: Annotated v2 (<span class="text-capitalize"><%= dataset.name %></span>)
+    </h2>
+    <p class="text-muted mb-0">
+      Thư mục <code>outputs/annotated_v2/<%= dataset.name %>/</code> &mdash;
+      Ảnh chú thích bằng phương pháp tốt nhất (<code><%= stats.bestMethod %></code>), khoanh đỏ các ô patch bất thường
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/pipeline/<%= dataset.id %>/download/benchmark_csv" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-download me-1"></i>Tải benchmark_<%= dataset.name %>_scores.csv
+    </a>
+    <a href="/pipeline/<%= dataset.id %>" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Quay lại Pipeline
+    </a>
+  </div>
+</div>
+
+<!-- Thống kê nhanh theo ngưỡng FPR 10% -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-dark"><%= stats.total %></div>
+      <div class="small text-muted">Tổng ảnh OOF</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-5 text-primary"><code><%= stats.bestMethod %></code></div>
+      <div class="small text-muted">Phương pháp tốt nhất</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-success"><%= stats.tp %></div>
+      <div class="small text-muted">TP (Lỗi bắt đúng)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-danger"><%= stats.fn %></div>
+      <div class="small text-muted">FN (Lỗi bị sót)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-warning"><%= stats.fp %></div>
+      <div class="small text-muted">FP (Đạt báo nhầm)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-info"><%= stats.opThr !== null ? stats.opThr.toFixed(3) : '—' %></div>
+      <div class="small text-muted">Ngưỡng (FPR=10%)</div>
+    </div>
+  </div>
+</div>
+
+<!-- Biểu đồ ROC + Bảng / Text Benchmark -->
+<% if (benchFigUrl || benchTxt) { %>
+<div class="row g-3 mb-4">
+  <% if (benchFigUrl) { %>
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold"><i class="bi bi-trophy me-2 text-warning"></i>Biểu đồ Benchmark &amp; ROC (bench_<%= dataset.name %>.png)</div>
+      <div class="card-body text-center p-2">
+        <img src="<%= benchFigUrl %>" class="img-fluid rounded" style="max-height:330px;cursor:pointer" onclick="openImgModal(this.src)">
+      </div>
+    </div>
+  </div>
+  <% } %>
+  <% if (benchTxt) { %>
+  <div class="col-lg-<%= benchFigUrl ? '5' : '12' %>">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold"><i class="bi bi-file-text me-2 text-warning"></i>Chi tiết Benchmark (benchmark_<%= dataset.name %>.txt)</div>
+      <div class="card-body p-2">
+        <pre class="bg-light p-2 rounded small mb-0" style="max-height:320px;overflow:auto;font-size:0.76rem;"><%= benchTxt %></pre>
+      </div>
+    </div>
+  </div>
+  <% } %>
+</div>
+<% } %>
+
+<!-- Thanh lọc & Tìm kiếm -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div class="btn-group btn-group-sm" role="group" id="filterBtns">
+      <button type="button" class="btn btn-outline-secondary active" data-filter="all">Tất cả (<%= stats.total %>)</button>
+      <button type="button" class="btn btn-outline-success" data-filter="gt-ok">GT: OK (<%= stats.gtOk %>)</button>
+      <button type="button" class="btn btn-outline-danger" data-filter="gt-defect">GT: Defect (<%= stats.gtDefect %>)</button>
+      <button type="button" class="btn btn-outline-primary" data-filter="TP">TP (<%= stats.tp %>)</button>
+      <button type="button" class="btn btn-outline-dark" data-filter="FN">FN Bị sót (<%= stats.fn %>)</button>
+      <button type="button" class="btn btn-outline-warning" data-filter="FP">FP Báo nhầm (<%= stats.fp %>)</button>
+    </div>
+    <div class="input-group input-group-sm" style="max-width:260px;">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input type="text" id="searchInput" class="form-control" placeholder="Tìm tên file...">
+    </div>
+  </div>
+</div>
+
+<!-- Gallery ảnh annotated_v2 -->
+<% if (items.length === 0) { %>
+  <div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>Chưa có ảnh nào trong thư mục <code>outputs/annotated_v2/<%= dataset.name %>/</code>. Vui lòng chạy lại Bước 3 (Benchmark).
+  </div>
+<% } else { %>
+  <div class="row g-3 mb-4" id="annotatedV2Gallery">
+    <% items.forEach((item, idx) => { %>
+      <%
+        const badgeColor = item.outcome === 'TP' ? 'success'
+                         : item.outcome === 'TN' ? 'secondary'
+                         : item.outcome === 'FN' ? 'danger'
+                         : item.outcome === 'FP' ? 'warning'
+                         : 'secondary';
+      %>
+      <div class="col-6 col-sm-4 col-md-3 col-xl-2 gallery-card-col"
+           data-gt="<%= item.gtLabel %>"
+           data-outcome="<%= item.outcome || '' %>"
+           data-name="<%= item.filename.toLowerCase() %>">
+        <div class="card h-100 shadow-sm border-<%= (item.outcome==='FN'||item.outcome==='FP') ? 'danger' : (item.pred==='defect'?'warning':'success') %>"
+             style="cursor:pointer" onclick="openDetail(<%= idx %>)">
+          <div class="position-relative bg-dark">
+            <img src="<%= item.imgUrl %>" class="card-img-top" alt="<%= item.filename %>"
+                 style="height:155px;object-fit:contain;" loading="lazy">
+            <span class="position-absolute top-0 start-0 m-1 badge bg-<%= item.gtLabel==='defect'?'danger':'success' %>" style="font-size:0.65rem;">
+              GT: <%= item.gtLabel.toUpperCase() %>
+            </span>
+            <% if (item.outcome) { %>
+              <span class="position-absolute top-0 end-0 m-1 badge bg-<%= badgeColor %> <%= badgeColor==='warning'?'text-dark':'' %>" style="font-size:0.65rem;">
+                <%= item.outcome %>
+              </span>
+            <% } %>
+          </div>
+          <div class="card-body p-2">
+            <div class="fw-semibold text-truncate small" title="<%= item.filename %>"><%= item.origName %></div>
+            <div class="d-flex justify-content-between align-items-center mt-1" style="font-size:0.75rem;">
+              <span class="text-muted">score=<strong><%= item.bestScore !== null ? item.bestScore.toFixed(3) : '—' %></strong></span>
+              <% if (item.pred) { %>
+                <span class="badge bg-<%= item.pred==='defect'?'danger':'success' %>"><%= item.pred.toUpperCase() %></span>
+              <% } %>
+            </div>
+            <div class="text-muted" style="font-size:0.7rem;">
+              patch_knn: <%= item.scores.patch_knn !== null ? Number(item.scores.patch_knn).toFixed(2) : '—' %>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<!-- Bảng điểm 5 phương pháp -->
+<% if (scoreRows.length > 0) { %>
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-table me-2 text-warning"></i>Điểm Cross-Validation 5 phương pháp (benchmark_<%= dataset.name %>_scores.csv)</span>
+    <span class="badge bg-light text-dark border"><%= scoreRows.length %> ảnh</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive" style="max-height:420px;overflow:auto;">
+      <table class="table table-sm table-striped table-hover align-middle mb-0 small">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th>File</th>
+            <th>GT</th>
+            <th>baseline_maxz</th>
+            <th>patch_knn</th>
+            <th>sup_G_lr</th>
+            <th>sup_GS_lr</th>
+            <th>sup_GAS_rf</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% scoreRows.forEach(r => { %>
+          <tr>
+            <td><code><%= r.file %></code></td>
+            <td><span class="badge bg-<%= r.label==='defect'?'danger':'success' %>"><%= r.label %></span></td>
+            <td class="<%= stats.bestMethod==='baseline_maxz'?'fw-bold table-warning':'' %>"><%= Number(r.baseline_maxz).toFixed(4) %></td>
+            <td class="<%= stats.bestMethod==='patch_knn'?'fw-bold table-warning':'' %>"><%= Number(r.patch_knn).toFixed(4) %></td>
+            <td class="<%= stats.bestMethod==='sup_G_lr'?'fw-bold table-warning':'' %>"><%= Number(r.sup_G_lr).toFixed(4) %></td>
+            <td class="<%= stats.bestMethod==='sup_GS_lr'?'fw-bold table-warning':'' %>"><%= Number(r.sup_GS_lr).toFixed(4) %></td>
+            <td class="<%= stats.bestMethod==='sup_GAS_rf'?'fw-bold table-warning':'' %>"><%= Number(r.sup_GAS_rf).toFixed(4) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<!-- Modal chi tiết ảnh -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="mTitle">Chi tiết ảnh</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-7 text-center bg-dark rounded p-2">
+            <img id="mImg" src="" class="img-fluid rounded" style="max-height:380px;">
+            <small class="text-light d-block mt-1">Ô vuông đỏ: các patch bất thường vượt ngưỡng 99%</small>
+          </div>
+          <div class="col-md-5">
+            <ul class="list-group list-group-flush small">
+              <li class="list-group-item d-flex justify-content-between"><span>Nhãn gốc (GT):</span><strong id="mGt"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Kết quả (@FPR 10%):</span><strong id="mOutcome"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>baseline_maxz:</span><strong id="mMaxz"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>patch_knn:</span><strong id="mPatch"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>sup_G_lr:</span><strong id="mGLr"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>sup_GS_lr:</span><strong id="mGSLr"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>sup_GAS_rf:</span><strong id="mGASRf"></strong></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal phóng to biểu đồ -->
+<div class="modal fade" id="figModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body text-center p-2"><img id="figModalImg" src="" class="img-fluid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ITEMS = <%- JSON.stringify(items) %>;
+let activeFilter = 'all';
+
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  document.querySelectorAll('.gallery-card-col').forEach(el => {
+    const gt = el.dataset.gt;
+    const out = el.dataset.outcome;
+    const name = el.dataset.name;
+    let show = true;
+    if (activeFilter === 'gt-ok') show = gt === 'ok';
+    else if (activeFilter === 'gt-defect') show = gt === 'defect';
+    else if (['TP','FN','FP','TN'].includes(activeFilter)) show = out === activeFilter;
+    if (show && q && !name.includes(q)) show = false;
+    el.classList.toggle('d-none', !show);
+  });
+}
+
+document.querySelectorAll('#filterBtns button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#filterBtns button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    applyFilters();
+  });
+});
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+function openDetail(idx) {
+  const it = ITEMS[idx];
+  if (!it) return;
+  document.getElementById('mTitle').textContent = it.filename;
+  document.getElementById('mImg').src = it.imgUrl;
+  document.getElementById('mGt').textContent = it.gtLabel.toUpperCase();
+  document.getElementById('mOutcome').textContent = it.outcome || '—';
+  const s = it.scores || {};
+  document.getElementById('mMaxz').textContent = s.baseline_maxz !== null ? Number(s.baseline_maxz).toFixed(4) : '—';
+  document.getElementById('mPatch').textContent = s.patch_knn !== null ? Number(s.patch_knn).toFixed(4) : '—';
+  document.getElementById('mGLr').textContent = s.sup_G_lr !== null ? Number(s.sup_G_lr).toFixed(4) : '—';
+  document.getElementById('mGSLr').textContent = s.sup_GS_lr !== null ? Number(s.sup_GS_lr).toFixed(4) : '—';
+  document.getElementById('mGASRf').textContent = s.sup_GAS_rf !== null ? Number(s.sup_GAS_rf).toFixed(4) : '—';
+  new bootstrap.Modal(document.getElementById('detailModal')).show();
+}
+
+function openImgModal(src) {
+  document.getElementById('figModalImg').src = src;
+  new bootstrap.Modal(document.getElementById('figModal')).show();
+}
+</script>

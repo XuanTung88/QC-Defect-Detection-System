@@ -1,0 +1,208 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">Bảng Điều Khiển Tổng Quan</h2>
+    <p class="text-muted mb-0">Hệ thống phân tích khuyết tật hình dạng dựa trên tỉ số Convex Hull & Solidity</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/inspection" class="btn btn-primary"><i class="bi bi-images me-1"></i> Bắt đầu Kiểm tra</a>
+    <a href="/training" class="btn btn-outline-secondary"><i class="bi bi-mortarboard me-1"></i> Huấn luyện Dữ liệu</a>
+  </div>
+</div>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card p-3 shadow-sm h-100">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small fw-semibold">BỘ DỮ LIỆU</span>
+          <h3 class="fw-bold mb-0 mt-1"><%= stats.total_datasets %></h3>
+        </div>
+        <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle">
+          <i class="bi bi-folder-fill fs-4"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card stat-warning p-3 shadow-sm h-100">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small fw-semibold">PHIÊN KIỂM TRA</span>
+          <h3 class="fw-bold mb-0 mt-1"><%= stats.total_inspections %></h3>
+        </div>
+        <div class="bg-warning bg-opacity-10 text-warning p-3 rounded-circle">
+          <i class="bi bi-camera-fill fs-4"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card stat-success p-3 shadow-sm h-100">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small fw-semibold">ẢNH ĐÃ PHÂN TÍCH</span>
+          <h3 class="fw-bold mb-0 mt-1"><%= stats.total_inspected_images %></h3>
+        </div>
+        <div class="bg-success bg-opacity-10 text-success p-3 rounded-circle">
+          <i class="bi bi-image fs-4"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card stat-danger p-3 shadow-sm h-100">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small fw-semibold">KHUYẾT TẬT PHÁT HIỆN</span>
+          <h3 class="fw-bold mb-0 mt-1"><%= stats.total_defects_found %></h3>
+        </div>
+        <div class="bg-danger bg-opacity-10 text-danger p-3 rounded-circle">
+          <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Row: Chart & Datasets -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title fw-bold mb-0"><i class="bi bi-bar-chart-line text-primary me-2"></i>Độ chính xác mô hình (AUC Score)</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="aucChart" height="150"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="card-title fw-bold mb-0"><i class="bi bi-box-seam text-primary me-2"></i>Bộ dữ liệu đã cấu hình</h5>
+        <a href="/datasets" class="btn btn-sm btn-link text-decoration-none">Xem tất cả</a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Tên</th>
+                <th>Phân đoạn</th>
+                <th>AUC</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% datasets.forEach(d => { %>
+                <tr>
+                  <td><strong><%= d.name %></strong></td>
+                  <td><span class="badge bg-secondary"><%= d.channel %></span></td>
+                  <td><%= d.auc_score ? d.auc_score.toFixed(3) : '---' %></td>
+                  <td>
+                    <% if (d.status === 'trained') { %>
+                      <span class="badge bg-success"><i class="bi bi-check2"></i> Đã train</span>
+                    <% } else { %>
+                      <span class="badge bg-warning text-dark">Chờ train</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Inspections Table -->
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <h5 class="card-title fw-bold mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Phiên kiểm tra gần đây</h5>
+    <a href="/inspection" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i> Tạo phiên mới</a>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>Tên phiên</th>
+            <th>Bộ dữ liệu</th>
+            <th>Tổng ảnh</th>
+            <th>OK / Defect</th>
+            <th>Thời gian</th>
+            <th class="text-end">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (stats.recent_inspections && stats.recent_inspections.length > 0) { %>
+            <% stats.recent_inspections.forEach(i => { %>
+              <tr>
+                <td>#<%= i.id %></td>
+                <td><strong><%= i.name %></strong></td>
+                <td><span class="badge bg-light text-dark border"><%= i.dataset_name %></span></td>
+                <td><%= i.total_images %></td>
+                <td>
+                  <span class="badge bg-success me-1"><%= i.ok_count %> OK</span>
+                  <span class="badge bg-danger"><%= i.defect_count %> DEFECT</span>
+                </td>
+                <td><%= new Date(i.created_at).toLocaleString('vi-VN') %></td>
+                <td class="text-end">
+                  <a href="/inspection/session/<%= i.id %>" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i> Xem chi tiết
+                  </a>
+                  <a href="/inspection/api/<%= i.id %>/export" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-download"></i> CSV
+                  </a>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="7" class="text-center py-4 text-muted">Chưa có phiên kiểm tra nào được ghi nhận. Hãy tạo phiên đầu tiên!</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Render Bar Chart for AUC
+  const ctx = document.getElementById('aucChart').getContext('2d');
+  const datasetNames = <%- JSON.stringify(datasets.map(d => d.name)) %>;
+  const aucScores = <%- JSON.stringify(datasets.map(d => d.auc_score || 0.85)) %>;
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: datasetNames,
+      datasets: [{
+        label: 'AUC Score',
+        data: aucScores,
+        backgroundColor: ['rgba(13, 110, 253, 0.75)', 'rgba(25, 135, 84, 0.75)', 'rgba(255, 193, 7, 0.75)'],
+        borderColor: ['#0d6efd', '#198754', '#ffc107'],
+        borderWidth: 1.5,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 1.0,
+          title: { display: true, text: 'Chỉ số AUC' }
+        }
+      }
+    }
+  });
+</script>

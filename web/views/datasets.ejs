@@ -1,0 +1,152 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">Quản Lý Bộ Dữ Liệu</h2>
+    <p class="text-muted mb-0">Cấu hình các loại sản phẩm, thông số tiền xử lý ảnh và ngưỡng phân đoạn Otsu</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDatasetModal">
+    <i class="bi bi-plus-circle me-1"></i> Thêm Bộ Dữ Liệu Mới
+  </button>
+</div>
+
+<div class="row g-3">
+  <% datasets.forEach(d => { %>
+    <div class="col-md-6 col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="card-title fw-bold text-primary mb-0"><%= d.name %></h5>
+            <% if (d.status === 'trained') { %>
+              <span class="badge bg-success">Đã Train</span>
+            <% } else { %>
+              <span class="badge bg-warning text-dark">Chờ Train</span>
+            <% } %>
+          </div>
+          <p class="text-muted small mb-3"><%= d.description || 'Chưa có mô tả' %></p>
+
+          <ul class="list-group list-group-flush small mb-3">
+            <li class="list-group-item d-flex justify-content-between px-0">
+              <span class="text-muted">Kênh phân đoạn:</span>
+              <strong><%= d.channel %></strong>
+            </li>
+            <li class="list-group-item d-flex justify-content-between px-0">
+              <span class="text-muted">Vật thể sáng hơn nền:</span>
+              <strong><%= d.object_bright ? 'Có (True)' : 'Không (False)' %></strong>
+            </li>
+            <li class="list-group-item d-flex justify-content-between px-0">
+              <span class="text-muted">Xử lý bên trong:</span>
+              <strong><%= d.interior %></strong>
+            </li>
+            <li class="list-group-item d-flex justify-content-between px-0">
+              <span class="text-muted">Ngưỡng z-score (k):</span>
+              <strong><%= d.threshold_k %></strong>
+            </li>
+            <li class="list-group-item d-flex justify-content-between px-0">
+              <span class="text-muted">Độ chính xác AUC:</span>
+              <strong class="text-success"><%= d.auc_score ? d.auc_score.toFixed(3) : '---' %></strong>
+            </li>
+          </ul>
+
+          <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+            <a href="/training" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-mortarboard me-1"></i> Huấn luyện
+            </a>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteDataset('<%= d.id %>', '<%= d.name %>')">
+              <i class="bi bi-trash"></i> Xóa
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Modal Thêm Dataset -->
+<div class="modal fade" id="createDatasetModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Tạo Bộ Dữ Liệu Mới</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="createDatasetForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tên bộ dữ liệu (không dấu, viết liền/gạch dưới):</label>
+            <input type="text" class="form-control" name="name" required placeholder="vd: screws, bottle_cap">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Mô tả đặc điểm sản phẩm:</label>
+            <textarea class="form-control" name="description" rows="2" placeholder="vd: Bulong ốc vít kim loại, kiểm tra sứt mẻ ren"></textarea>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Kênh màu phân đoạn:</label>
+              <select class="form-select" name="channel">
+                <option value="gray">Gray (Ảnh xám)</option>
+                <option value="sat">Saturation (Độ bão hòa HSV)</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Vùng thân (Interior):</label>
+              <select class="form-select" name="interior">
+                <option value="filled">Filled (Tô đặc thân)</option>
+                <option value="mask">Mask (Giữ lỗ rỗng giữa)</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Cắt viền (px):</label>
+              <input type="number" class="form-control" name="crop" value="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Ngưỡng z-score (k):</label>
+              <input type="number" step="0.1" class="form-control" name="threshold_k" value="3.0">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button type="submit" class="btn btn-primary">Lưu Bộ Dữ Liệu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('createDatasetForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const res = await fetch('/datasets/api/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      alert('Đã thêm bộ dữ liệu mới thành công!');
+      location.reload();
+    } catch (err) {
+      alert('Lỗi: ' + err.message);
+    }
+  });
+
+  async function deleteDataset(id, name) {
+    if (!confirm(`Bạn có chắc muốn xóa bộ dữ liệu "${name}" cùng toàn bộ dữ liệu huấn luyện liên quan?`)) return;
+
+    try {
+      const res = await fetch(`/datasets/api/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      location.reload();
+    } catch (err) {
+      alert('Lỗi xóa: ' + err.message);
+    }
+  }
+</script>

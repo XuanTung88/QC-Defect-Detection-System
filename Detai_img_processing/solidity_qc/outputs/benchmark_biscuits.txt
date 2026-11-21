@@ -1,0 +1,22 @@
+=== biscuits | Chinh: loi hinh dang (me, sut) ===
+Anh ok=32, defect=21 | 5-fold x 10 lan lap | 67 o/anh trung binh
+
+Phuong phap       AUC            Recall@FPR5%  Recall@FPR10%  Recall@FPR20%  Precision@FPR10%
+baseline_maxz     0.895 +- 0.017   0.56          0.67           0.81           0.78
+patch_knn         0.864 +- 0.014   0.59          0.71           0.79           0.79
+sup_G_lr          0.761 +- 0.034   0.52          0.55           0.59           0.74
+sup_GS_lr         0.850 +- 0.031   0.65          0.70           0.75           0.78
+sup_GAS_rf        0.929 +- 0.017   0.73          0.81           0.86           0.81
+
+Recall@FPR10% = ty le anh loi bat duoc khi cho phep bao nham 10% anh dat (nguong lay tu diem anh dat).
+Moi so la trung binh tren cac lan chia; khong co phuong phap nao duoc dung nhan loi cua anh kiem tra de huan luyen.
+
+Top dac trung quan trong (rung ngau nhien, chi de dien giai):
+  p_p90              0.163
+  gray_std           0.135
+  p_top5             0.097
+  solidity           0.087
+  p_max              0.071
+  p_mean             0.064
+  circularity        0.057
+  mean_b_std         0.056

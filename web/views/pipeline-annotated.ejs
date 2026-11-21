@@ -1,0 +1,305 @@
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/pipeline"><i class="bi bi-diagram-3 me-1"></i>Pipeline</a></li>
+    <li class="breadcrumb-item"><a href="/pipeline/<%= dataset.id %>"><%= dataset.name %></a></li>
+    <li class="breadcrumb-item active">Output Bước 2 (outputs/annotated/<%= dataset.name %>)</li>
+  </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">
+      <i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Output Bước 2: Annotated (<span class="text-capitalize"><%= dataset.name %></span>)
+    </h2>
+    <p class="text-muted mb-0">
+      Thư mục <code>outputs/annotated/<%= dataset.name %>/</code> &mdash; Kết quả phân đoạn Otsu, Convex Hull và điểm z-score từng ảnh (Evaluate)
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/pipeline/<%= dataset.id %>/download/results_csv" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-download me-1"></i>Tải results_<%= dataset.name %>.csv
+    </a>
+    <a href="/pipeline/<%= dataset.id %>" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Quay lại Pipeline
+    </a>
+  </div>
+</div>
+
+<!-- Thống kê nhanh -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-dark"><%= stats.total %></div>
+      <div class="small text-muted">Tổng ảnh</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-success"><%= stats.gtOk %></div>
+      <div class="small text-muted">Nhãn gốc OK</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-danger"><%= stats.gtDefect %></div>
+      <div class="small text-muted">Nhãn gốc Defect</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-info"><%= stats.calCount %></div>
+      <div class="small text-muted">Tập Hiệu chuẩn (cal)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-primary"><%= stats.testCount %></div>
+      <div class="small text-muted">Tập Kiểm tra (test)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-warning"><%= summaryJson?.auc?.all?.mean ? summaryJson.auc.all.mean.toFixed(3) : '—' %></div>
+      <div class="small text-muted">AUC tổng (all)</div>
+    </div>
+  </div>
+</div>
+
+<!-- Biểu đồ + Summary text (nếu có) -->
+<% if (evalFigUrl || summaryTxt) { %>
+<div class="row g-3 mb-4">
+  <% if (evalFigUrl) { %>
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold"><i class="bi bi-bar-chart-line me-2 text-primary"></i>Biểu đồ Evaluate (eval_<%= dataset.name %>.png)</div>
+      <div class="card-body text-center p-2">
+        <img src="<%= evalFigUrl %>" class="img-fluid rounded" style="max-height:320px;cursor:pointer" onclick="openImgModal(this.src)">
+      </div>
+    </div>
+  </div>
+  <% } %>
+  <% if (summaryTxt) { %>
+  <div class="col-lg-<%= evalFigUrl ? '5' : '12' %>">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold"><i class="bi bi-file-text me-2 text-primary"></i>Tóm tắt Evaluate (summary_<%= dataset.name %>.txt)</div>
+      <div class="card-body p-2">
+        <pre class="bg-light p-2 rounded small mb-0" style="max-height:310px;overflow:auto;font-size:0.78rem;"><%= summaryTxt %></pre>
+      </div>
+    </div>
+  </div>
+  <% } %>
+</div>
+<% } %>
+
+<!-- Thanh lọc & Tìm kiếm -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div class="btn-group btn-group-sm" role="group" id="filterBtns">
+      <button type="button" class="btn btn-outline-secondary active" data-filter="all">Tất cả (<%= stats.total %>)</button>
+      <button type="button" class="btn btn-outline-success" data-filter="gt-ok">Gốc OK (<%= stats.gtOk %>)</button>
+      <button type="button" class="btn btn-outline-danger" data-filter="gt-defect">Gốc Defect (<%= stats.gtDefect %>)</button>
+      <button type="button" class="btn btn-outline-primary" data-filter="pred-defect">Dự đoán DEFECT (<%= stats.predDefect %>)</button>
+      <button type="button" class="btn btn-outline-info" data-filter="split-cal">Tập Cal (<%= stats.calCount %>)</button>
+      <button type="button" class="btn btn-outline-dark" data-filter="wrong">Dự đoán lệch GT</button>
+    </div>
+    <div class="input-group input-group-sm" style="max-width:260px;">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input type="text" id="searchInput" class="form-control" placeholder="Tìm tên file...">
+    </div>
+  </div>
+</div>
+
+<!-- Gallery ảnh annotated -->
+<% if (items.length === 0) { %>
+  <div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>Chưa có ảnh nào trong thư mục <code>outputs/annotated/<%= dataset.name %>/</code>. Vui lòng chạy lại Bước 2 (Evaluate).
+  </div>
+<% } else { %>
+  <div class="row g-3 mb-4" id="annotatedGallery">
+    <% items.forEach((item, idx) => { %>
+      <div class="col-6 col-sm-4 col-md-3 col-xl-2 gallery-card-col"
+           data-gt="<%= item.gtLabel %>"
+           data-pred="<%= item.pred || '' %>"
+           data-split="<%= item.split %>"
+           data-correct="<%= item.isCorrect === false ? '0' : '1' %>"
+           data-name="<%= item.filename.toLowerCase() %>">
+        <div class="card h-100 shadow-sm border-<%= item.pred === 'defect' ? 'danger' : (item.pred === 'ok' ? 'success' : 'secondary') %>"
+             style="cursor:pointer" onclick="openDetail(<%= idx %>)">
+          <div class="position-relative bg-dark">
+            <img src="<%= item.imgUrl %>" class="card-img-top" alt="<%= item.filename %>"
+                 style="height:150px;object-fit:contain;" loading="lazy">
+            <span class="position-absolute top-0 start-0 m-1 badge bg-<%= item.gtLabel === 'defect' ? 'danger' : 'success' %>" style="font-size:0.65rem;">
+              GT: <%= item.gtLabel.toUpperCase() %>
+            </span>
+            <% if (item.split === 'cal') { %>
+              <span class="position-absolute top-0 end-0 m-1 badge bg-info text-dark" style="font-size:0.65rem;">cal</span>
+            <% } %>
+          </div>
+          <div class="card-body p-2">
+            <div class="fw-semibold text-truncate small" title="<%= item.filename %>"><%= item.origName %></div>
+            <div class="d-flex justify-content-between align-items-center mt-1" style="font-size:0.75rem;">
+              <span class="text-muted">z=<strong><%= item.score_all !== null ? Number(item.score_all).toFixed(2) : '—' %></strong></span>
+              <% if (item.pred) { %>
+                <span class="badge bg-<%= item.pred === 'defect' ? 'danger' : 'success' %> bg-opacity-75">
+                  <%= item.pred.toUpperCase() %>
+                </span>
+              <% } %>
+            </div>
+            <div class="text-muted" style="font-size:0.72rem;">
+              Solidity: <%= item.solidity !== null ? Number(item.solidity).toFixed(4) : '—' %>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<!-- Bảng dữ liệu CSV chi tiết -->
+<% if (csvRows.length > 0) { %>
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-table me-2 text-primary"></i>Bảng đặc trưng chi tiết (results_<%= dataset.name %>.csv)</span>
+    <span class="badge bg-light text-dark border"><%= csvRows.length %> dòng</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive" style="max-height:420px;overflow:auto;">
+      <table class="table table-sm table-striped table-hover align-middle mb-0 small">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th>File</th>
+            <th>GT</th>
+            <th>Split</th>
+            <th>Solidity</th>
+            <th>Circularity</th>
+            <th>Edge</th>
+            <th>Sobel</th>
+            <th>Gray std</th>
+            <th>Hist dist</th>
+            <th>Score (max z)</th>
+            <th>Pred</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% csvRows.forEach(r => { %>
+          <tr class="<%= r.pred && r.pred !== r.label ? 'table-warning' : '' %>">
+            <td><code><%= r.file %></code></td>
+            <td><span class="badge bg-<%= r.label==='defect'?'danger':'success' %>"><%= r.label %></span></td>
+            <td><span class="badge bg-<%= r.split==='cal'?'info text-dark':'secondary' %>"><%= r.split %></span></td>
+            <td><%= typeof r.solidity==='number' ? r.solidity.toFixed(4) : r.solidity %></td>
+            <td><%= typeof r.circularity==='number' ? r.circularity.toFixed(4) : r.circularity %></td>
+            <td><%= typeof r.edge_density==='number' ? r.edge_density.toFixed(4) : r.edge_density %></td>
+            <td><%= typeof r.sobel_mean==='number' ? r.sobel_mean.toFixed(2) : r.sobel_mean %></td>
+            <td><%= typeof r.gray_std==='number' ? r.gray_std.toFixed(2) : r.gray_std %></td>
+            <td><%= typeof r.hist_dist==='number' ? r.hist_dist.toFixed(3) : r.hist_dist %></td>
+            <td><strong><%= typeof r.score_all==='number' ? r.score_all.toFixed(2) : r.score_all %></strong></td>
+            <td><span class="badge bg-<%= r.pred==='defect'?'danger':'success' %>"><%= r.pred %></span></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<!-- Modal chi tiết ảnh -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="mTitle">Chi tiết ảnh</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-7 text-center bg-dark rounded p-2">
+            <img id="mImg" src="" class="img-fluid rounded" style="max-height:380px;">
+          </div>
+          <div class="col-md-5">
+            <ul class="list-group list-group-flush small">
+              <li class="list-group-item d-flex justify-content-between"><span>Nhãn gốc (GT):</span><strong id="mGt"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Dự đoán (Pred):</span><strong id="mPred"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Tập (Split):</span><strong id="mSplit"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Điểm max-z:</span><strong id="mScore"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Solidity:</span><strong id="mSolidity"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Circularity:</span><strong id="mCirc"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Edge density:</span><strong id="mEdge"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Sobel mean:</span><strong id="mSobel"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Gray std:</span><strong id="mGray"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Hist dist:</span><strong id="mHist"></strong></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal phóng to biểu đồ -->
+<div class="modal fade" id="figModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body text-center p-2"><img id="figModalImg" src="" class="img-fluid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ITEMS = <%- JSON.stringify(items) %>;
+let activeFilter = 'all';
+
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  document.querySelectorAll('.gallery-card-col').forEach(el => {
+    const gt = el.dataset.gt;
+    const pred = el.dataset.pred;
+    const split = el.dataset.split;
+    const correct = el.dataset.correct;
+    const name = el.dataset.name;
+    let show = true;
+    if (activeFilter === 'gt-ok') show = gt === 'ok';
+    else if (activeFilter === 'gt-defect') show = gt === 'defect';
+    else if (activeFilter === 'pred-defect') show = pred === 'defect';
+    else if (activeFilter === 'split-cal') show = split === 'cal';
+    else if (activeFilter === 'wrong') show = correct === '0';
+    if (show && q && !name.includes(q)) show = false;
+    el.classList.toggle('d-none', !show);
+  });
+}
+
+document.querySelectorAll('#filterBtns button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#filterBtns button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    applyFilters();
+  });
+});
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+function openDetail(idx) {
+  const it = ITEMS[idx];
+  if (!it) return;
+  document.getElementById('mTitle').textContent = it.filename;
+  document.getElementById('mImg').src = it.imgUrl;
+  document.getElementById('mGt').textContent = it.gtLabel.toUpperCase();
+  document.getElementById('mPred').textContent = it.pred ? it.pred.toUpperCase() : '—';
+  document.getElementById('mSplit').textContent = it.split;
+  document.getElementById('mScore').textContent = it.score_all !== null ? Number(it.score_all).toFixed(2) : '—';
+  document.getElementById('mSolidity').textContent = it.solidity !== null ? Number(it.solidity).toFixed(5) : '—';
+  document.getElementById('mCirc').textContent = it.circularity !== null ? Number(it.circularity).toFixed(5) : '—';
+  document.getElementById('mEdge').textContent = it.edge_density !== null ? Number(it.edge_density).toFixed(5) : '—';
+  document.getElementById('mSobel').textContent = it.sobel_mean !== null ? Number(it.sobel_mean).toFixed(2) : '—';
+  document.getElementById('mGray').textContent = it.gray_std !== null ? Number(it.gray_std).toFixed(2) : '—';
+  document.getElementById('mHist').textContent = it.hist_dist !== null ? Number(it.hist_dist).toFixed(4) : '—';
+  new bootstrap.Modal(document.getElementById('detailModal')).show();
+}
+
+function openImgModal(src) {
+  document.getElementById('figModalImg').src = src;
+  new bootstrap.Modal(document.getElementById('figModal')).show();
+}
+</script>

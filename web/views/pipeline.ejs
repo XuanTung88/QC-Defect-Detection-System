@@ -1,0 +1,107 @@
+<%
+// Trạng thái pipeline → badge màu
+const stepOrder = ['pending', 'explore', 'evaluate', 'benchmark', 'ready'];
+function stepBadge(ds) {
+  const s = ds.pipeline_step || 'pending';
+  const labels = { pending: 'Chưa bắt đầu', explore: 'Đã Explore', evaluate: 'Đã Evaluate', benchmark: 'Đã Benchmark', ready: 'Sẵn sàng' };
+  const colors = { pending: 'secondary', explore: 'info', evaluate: 'primary', benchmark: 'warning', ready: 'success' };
+  return `<span class="badge bg-${colors[s] || 'secondary'}">${labels[s] || s}</span>`;
+}
+%>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold mb-1"><i class="bi bi-diagram-3 me-2 text-primary"></i>Pipeline Phân Tích</h2>
+    <p class="text-muted mb-0">Chạy tuần tự 4 bước để chuẩn bị mô hình trước khi phân loại ảnh mới</p>
+  </div>
+  <a href="/datasets/new" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>Tạo Dataset Mới
+  </a>
+</div>
+
+<!-- Hướng dẫn luồng -->
+<div class="alert alert-info d-flex gap-3 align-items-start mb-4" role="alert">
+  <i class="bi bi-info-circle-fill fs-5 mt-1"></i>
+  <div>
+    <strong>Luồng bắt buộc:</strong>
+    <span class="badge bg-info text-dark">1. Explore</span>
+    <i class="bi bi-arrow-right mx-1"></i>
+    <span class="badge bg-primary">2. Evaluate</span>
+    <i class="bi bi-arrow-right mx-1"></i>
+    <span class="badge bg-warning text-dark">3. Benchmark</span>
+    <i class="bi bi-arrow-right mx-1"></i>
+    <span class="badge bg-danger">4. Report</span>
+    <i class="bi bi-arrow-right mx-1"></i>
+    <span class="badge bg-success">✓ Sẵn sàng Phân loại</span>
+    <div class="mt-1 small">Mỗi dataset phải hoàn thành đủ 4 bước mới có thể phân loại ảnh mới.</div>
+  </div>
+</div>
+
+<% if (!datasets || datasets.length === 0) { %>
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-folder-x display-4 mb-3"></i>
+    <h5>Chưa có bộ dữ liệu nào</h5>
+    <a href="/datasets/new" class="btn btn-outline-primary mt-2">Tạo dataset đầu tiên</a>
+  </div>
+<% } else { %>
+  <div class="row g-3">
+    <% datasets.forEach(ds => { %>
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm border-0">
+        <div class="card-header d-flex justify-content-between align-items-center bg-white border-bottom">
+          <strong class="text-capitalize"><i class="bi bi-layers me-1"></i><%= ds.name %></strong>
+          <%- stepBadge(ds) %>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-2"><%= ds.description || 'Không có mô tả' %></p>
+          <div class="row g-2 text-center mb-3">
+            <div class="col-4">
+              <div class="bg-light rounded py-2">
+                <div class="fw-bold text-success fs-5"><%= ds.ok_count || 0 %></div>
+                <div class="text-muted" style="font-size:0.7rem">Ảnh OK</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="bg-light rounded py-2">
+                <div class="fw-bold text-danger fs-5"><%= ds.defect_count || 0 %></div>
+                <div class="text-muted" style="font-size:0.7rem">Ảnh Lỗi</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="bg-light rounded py-2">
+                <div class="fw-bold text-primary fs-5"><%= ds.auc_score ? ds.auc_score.toFixed(3) : '—' %></div>
+                <div class="text-muted" style="font-size:0.7rem">AUC</div>
+              </div>
+            </div>
+          </div>
+          <!-- Progress pipeline -->
+          <%
+            const pstep = ds.pipeline_step || 'pending';
+            const stepIdx = stepOrder.indexOf(pstep);
+            const pct = pstep === 'ready' ? 100 : Math.round((stepIdx / 4) * 100);
+          %>
+          <div class="mb-2">
+            <div class="d-flex justify-content-between small mb-1">
+              <span>Tiến độ pipeline</span><span><%= pct %>%</span>
+            </div>
+            <div class="progress" style="height:6px">
+              <div class="progress-bar bg-<%= pstep==='ready'?'success':'warning' %>"
+                   style="width:<%= pct %>%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-white border-top d-flex gap-2">
+          <a href="/pipeline/<%= ds.id %>" class="btn btn-primary btn-sm flex-grow-1">
+            <i class="bi bi-play-circle me-1"></i>Chạy Pipeline
+          </a>
+          <% if (pstep === 'ready') { %>
+          <a href="/inspection" class="btn btn-success btn-sm">
+            <i class="bi bi-images"></i>
+          </a>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+<% } %>

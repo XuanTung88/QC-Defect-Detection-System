@@ -1,0 +1,132 @@
+# ==============================================================================
+# 1. BẢO MẬT & BIẾN MÔI TRƯỜNG (CỰC KỲ QUAN TRỌNG)
+# ==============================================================================
+# Bỏ qua toàn bộ các file .env để tránh lộ mật khẩu DB, thông tin bí mật và đường dẫn máy cục bộ
+.env
+.env.*
+*.env
+web/.env
+web/.env.*
+
+# KHÔNG bỏ qua file mẫu cấu hình để người khác clone repo có thể tham khảo:
+!.env.example
+!web/.env.example
+
+
+# ==============================================================================
+# 2. FILE KẾ HOẠCH NỘI BỘ (THEO YÊU CẦU)
+# ==============================================================================
+# Bỏ qua file roadmap.md nếu đây là tài liệu kế hoạch / ghi chú nội bộ không muốn public lên GitHub.
+# (LƯU Ý: Nếu thực tế bạn MUỐN ĐẨY roadmap.md lên GitHub làm tài liệu, hãy thêm dấu # ở đầu dòng bên dưới)
+roadmap.md
+
+
+# ==============================================================================
+# 3. MÔI TRƯỜNG ẢO PYTHON (VIRTUAL ENVIRONMENTS)
+# ==============================================================================
+# Môi trường ảo Python của dự án (~465 MB) - Tuyệt đối không đẩy lên GitHub
+image_processing_env/
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+
+# ==============================================================================
+# 4. PYTHON COMPILED & CACHE
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.ipynb_checkpoints/
+
+
+# ==============================================================================
+# 5. NODE.JS & WEB DEPENDENCIES
+# ==============================================================================
+node_modules/
+web/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+
+
+# ==============================================================================
+# 6. DỮ LIỆU UPLOAD TẠM & ẢNH OUTPUT SINH RA KHI CHẠY
+# ==============================================================================
+# Bỏ qua ảnh upload tạm của các phiên kiểm tra / huấn luyện trên Web
+web/uploads/inspect/*
+web/uploads/results/*
+web/uploads/train/*
+web/uploads/defectqc/*
+!web/uploads/**/.gitkeep
+
+# Bỏ qua các thư mục ảnh output tự động sinh ra khi evaluate/benchmark (~185 MB)
+Detai_img_processing/solidity_qc/outputs/annotated/
+Detai_img_processing/solidity_qc/outputs/annotated_v2/
+Detai_img_processing/solidity_qc/outputs/figures/
+
+
+# ==============================================================================
+# 7. IDE & HỆ ĐIỀU HÀNH (WINDOWS / MACOS / LINUX)
+# ==============================================================================
+# VS Code / JetBrains
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+~$*.doc*
+~$*.xls*
+~$*.ppt*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+
+# ==============================================================================
+# 8. LOGS & FILE TẠM
+# ==============================================================================
+*.log
+logs/
+temp/
+tmp/

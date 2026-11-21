@@ -1,0 +1,15 @@
+=== biscuits | Chinh: loi hinh dang (me, sut) ===
+Anh ok=48, defect=67 | hieu chuan=29 anh ok/lan, kiem tra=19 ok + 67 defect | 30 lan chia | k=3.0
+
+AUC theo tung dac trung:
+  solidity       0.847 +- 0.023
+  circularity    0.782 +- 0.044
+  edge_density   0.703 +- 0.045
+  sobel_mean     0.690 +- 0.014
+  gray_std       0.711 +- 0.009
+  hist_dist      0.552 +- 0.045
+
+Bo dac trung (diem = max z):   AUC            precision  recall   F1      FPR
+  shape                         0.873 +- 0.033   0.98       0.45     0.61    0.04
+  surface                       0.845 +- 0.028   0.98       0.58     0.72    0.04
+  all                           0.933 +- 0.023   0.98       0.74     0.83    0.07

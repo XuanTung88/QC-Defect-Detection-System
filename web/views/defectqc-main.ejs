@@ -1,0 +1,185 @@
+<%# defectqc-main.ejs — Trang chính module Defect QC %>
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <span class="display-6"><i class="bi bi-shield-exclamation text-warning"></i></span>
+      <div>
+        <h2 class="fw-bold mb-0">Defect QC — Phát Hiện Sứt Mẻ / Vỡ</h2>
+        <p class="text-muted mb-0">Module độc lập cho <strong>vật thể khép kín</strong> (tròn, oval, đa giác…).
+          Phát hiện khuyết tật cấu trúc: mẻ viền, vỡ, nứt, thiếu mảnh, lỗ hổng bất thường.</p>
+      </div>
+    </div>
+
+    <!-- Phân biệt với pipeline gốc -->
+    <div class="alert alert-info border-0 d-flex gap-2 align-items-start py-2 mt-2" role="alert">
+      <i class="bi bi-info-circle-fill fs-5 text-info flex-shrink-0 mt-1"></i>
+      <div class="small">
+        <strong>Khác với Pipeline gốc (biscuits/hazelnut/pills):</strong>
+        Module này <em>không</em> kiểm soát hình dạng chuẩn hay kích thước —
+        chỉ phát hiện khi vật thể bị <em>sứt mẻ, vỡ, thiếu mảnh, nứt</em>.
+        Đặc trưng sử dụng: <code>solidity · convexity · extent · hole_ratio · boundary_roughness</code>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- Cột trái: Scan dataset -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-warning bg-opacity-10 border-0">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-search me-2 text-warning"></i>Scan Toàn Bộ Dataset</h5>
+        <div class="text-muted small mt-1">Upload ảnh OK + Defect → phân tích + tính AUC</div>
+      </div>
+      <div class="card-body">
+        <form id="scanForm" enctype="multipart/form-data">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tên Session <span class="text-muted small">(để phân biệt kết quả)</span></label>
+            <input type="text" class="form-control" name="session_name" placeholder="vd: washers_01, bolts_test" required
+              pattern="[a-zA-Z0-9_-]+" title="Chỉ dùng chữ, số, gạch dưới, gạch ngang">
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold text-success">Ảnh OK (≥ 3)</label>
+              <input type="file" class="form-control" name="ok_images" multiple accept="image/png,image/jpeg" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold text-danger">Ảnh Defect (≥ 1)</label>
+              <input type="file" class="form-control" name="defect_images" multiple accept="image/png,image/jpeg" required>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Kênh màu</label>
+              <select class="form-select form-select-sm" name="channel">
+                <option value="gray" selected>Grayscale</option>
+                <option value="sat">Saturation (HSV)</option>
+                <option value="val">Value (HSV)</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Vật sáng hơn nền?</label>
+              <select class="form-select form-select-sm" name="object_bright">
+                <option value="true" selected>Có (vật sáng)</option>
+                <option value="false">Không (vật tối)</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Ngưỡng Z (k)</label>
+              <input type="number" class="form-control form-control-sm" name="threshold_k" value="3.0" min="1" max="10" step="0.5">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-warning fw-semibold w-100" id="btnScan">
+            <i class="bi bi-play-circle-fill me-1"></i>Bắt đầu Scan & Phân Tích
+          </button>
+        </form>
+
+        <!-- Loading -->
+        <div id="scanLoading" class="text-center py-4 d-none">
+          <div class="spinner-border text-warning mb-2" style="width:2.5rem;height:2.5rem;" role="status"></div>
+          <p class="fw-semibold text-muted">Đang phân tích ảnh, vui lòng chờ…</p>
+        </div>
+
+        <!-- Kết quả nhanh -->
+        <div id="scanResult" class="mt-3 d-none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cột phải: danh sách session + link nhanh tới inspect -->
+  <div class="col-lg-6 d-flex flex-column gap-4">
+
+    <!-- Link Phân loại ảnh mới -->
+    <div class="card shadow-sm border-0 border-start border-4 border-primary">
+      <div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-images fs-2 text-primary flex-shrink-0"></i>
+        <div class="flex-grow-1">
+          <h6 class="fw-bold mb-1">Phân Loại Ảnh Mới (Chưa Có Nhãn)</h6>
+          <p class="text-muted small mb-2">Upload ảnh OK chuẩn + ảnh cần kiểm tra → nhận kết quả OK / DEFECT ngay</p>
+          <a href="/defectqc/inspect" class="btn btn-primary btn-sm">
+            <i class="bi bi-arrow-right-circle me-1"></i>Mở trang Phân Loại
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Danh sách session đã scan -->
+    <div class="card shadow-sm border-0 flex-grow-1">
+      <div class="card-header bg-light border-0">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2"></i>Lịch sử Scan</h6>
+      </div>
+      <div class="card-body p-0">
+        <% if (sessions.length === 0) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-inbox fs-1 d-block mb-2"></i>Chưa có session nào.
+          </div>
+        <% } else { %>
+          <div class="list-group list-group-flush">
+            <% sessions.forEach(s => { %>
+              <a href="/defectqc/session/<%= s.name %>"
+                 class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <div>
+                  <i class="bi bi-folder2 me-2 text-warning"></i>
+                  <span class="fw-semibold"><%= s.name %></span>
+                  <% if (s.meta) { %>
+                    <span class="badge bg-success ms-2"><%= s.meta.n_ok || 0 %> OK</span>
+                    <span class="badge bg-danger ms-1"><%= s.meta.n_defect || 0 %> Defect</span>
+                    <span class="badge bg-info text-dark ms-1">AUC <%= (s.meta.auc_mean || 0).toFixed(3) %></span>
+                  <% } %>
+                </div>
+                <i class="bi bi-chevron-right text-muted"></i>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('scanForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  document.getElementById('btnScan').disabled = true;
+  document.getElementById('scanLoading').classList.remove('d-none');
+  document.getElementById('scanResult').classList.add('d-none');
+
+  try {
+    const fd = new FormData(this);
+    const r = await fetch('/defectqc/api/scan', { method: 'POST', body: fd });
+    const data = await r.json();
+    document.getElementById('scanLoading').classList.add('d-none');
+
+    if (data.success) {
+      document.getElementById('scanResult').innerHTML = `
+        <div class="alert alert-success border-0">
+          <strong><i class="bi bi-check-circle me-1"></i>Scan hoàn tất!</strong>
+          AUC = <strong>${(data.auc_mean||0).toFixed(3)}</strong> ±${(data.auc_std||0).toFixed(3)}<br>
+          <span class="badge bg-success">TP=${data.tp||0}</span>
+          <span class="badge bg-warning text-dark ms-1">FN=${data.fn||0}</span>
+          <span class="badge bg-danger ms-1">FP=${data.fp||0}</span>
+          <span class="badge bg-secondary ms-1">TN=${data.tn||0}</span>
+          <div class="mt-2">
+            <a href="/defectqc/session/${data.session_name}" class="btn btn-success btn-sm">
+              <i class="bi bi-eye me-1"></i>Xem Chi Tiết Kết Quả
+            </a>
+          </div>
+        </div>`;
+      document.getElementById('scanResult').classList.remove('d-none');
+    } else {
+      document.getElementById('scanResult').innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+      document.getElementById('scanResult').classList.remove('d-none');
+    }
+  } catch(err) {
+    document.getElementById('scanLoading').classList.add('d-none');
+    document.getElementById('scanResult').innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    document.getElementById('scanResult').classList.remove('d-none');
+  }
+  document.getElementById('btnScan').disabled = false;
+});
+</script>

@@ -1,0 +1,281 @@
+<div class="row mb-4">
+  <div class="col-12">
+    <h2 class="fw-bold mb-1">Huấn Luyện Mô Hình Phân Lớp</h2>
+    <p class="text-muted">Tải lên dữ liệu ảnh chuẩn và ảnh lỗi để xây dựng mô hình trích xuất đặc trưng & PatchBank</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left Column: Form & Upload Controls -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title fw-bold mb-0"><i class="bi bi-folder-check text-primary me-2"></i>1. Chọn Bộ Dữ Liệu</h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Bộ dữ liệu:</label>
+          <select class="form-select" id="datasetSelect">
+            <% datasets.forEach(d => { %>
+              <option value="<%= d.id %>" data-name="<%= d.name %>" data-channel="<%= d.channel %>">
+                <%= d.name %> - <%= d.description %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Zones: 7+ OK and 5+ Defect -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="card-title fw-bold mb-0"><i class="bi bi-cloud-arrow-up text-primary me-2"></i>2. Tải Lên Dữ Liệu Huấn Luyện</h5>
+        <span class="badge bg-info text-dark">Yêu cầu: &ge; 7 OK và &ge; 5 Defect</span>
+      </div>
+      <div class="card-body">
+        <form id="uploadTrainingForm">
+          <div class="row g-3">
+            <!-- OK Images Box -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold text-success d-flex justify-content-between">
+                <span><i class="bi bi-check-circle me-1"></i> Ảnh Chuẩn (OK)</span>
+                <span class="badge bg-success" id="okCountBadge">0 đã chọn (cần &ge; 7)</span>
+              </label>
+              <div class="dropzone-box" onclick="document.getElementById('okFileInput').click()">
+                <i class="bi bi-file-earmark-image fs-1 text-success mb-2"></i>
+                <p class="mb-1 fw-semibold">Kéo thả hoặc nhấp để chọn ảnh OK</p>
+                <small class="text-muted">Định dạng JPG, PNG</small>
+                <input type="file" id="okFileInput" name="ok_images" multiple accept="image/png,image/jpeg" class="d-none" onchange="handleFileSelect('ok', this)">
+              </div>
+              <div class="preview-grid mt-2" id="okPreviewGrid"></div>
+            </div>
+
+            <!-- Defect Images Box -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold text-danger d-flex justify-content-between">
+                <span><i class="bi bi-x-circle me-1"></i> Ảnh Khuyết Tật (Defect)</span>
+                <span class="badge bg-danger" id="defectCountBadge">0 đã chọn (cần &ge; 5)</span>
+              </label>
+              <div class="dropzone-box" onclick="document.getElementById('defectFileInput').click()">
+                <i class="bi bi-file-earmark-x fs-1 text-danger mb-2"></i>
+                <p class="mb-1 fw-semibold">Kéo thả hoặc nhấp để chọn ảnh Defect</p>
+                <small class="text-muted">Định dạng JPG, PNG</small>
+                <input type="file" id="defectFileInput" name="defect_images" multiple accept="image/png,image/jpeg" class="d-none" onchange="handleFileSelect('defect', this)">
+              </div>
+              <div class="preview-grid mt-2" id="defectPreviewGrid"></div>
+            </div>
+          </div>
+
+          <div class="mt-4 d-flex justify-content-between align-items-center">
+            <button type="button" class="btn btn-outline-secondary" onclick="resetUploadForm()">
+              <i class="bi bi-arrow-clockwise me-1"></i> Xóa chọn
+            </button>
+            <button type="button" class="btn btn-primary" id="btnUpload" onclick="uploadImages()">
+              <i class="bi bi-upload me-1"></i> 1. Tải Lên Server
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Trigger Training Button -->
+    <div class="card shadow-sm border-primary">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="fw-bold mb-1">3. Khởi Chạy Huấn Luyện (Train Model)</h5>
+          <p class="text-muted small mb-0">Hệ thống sẽ trích xuất Convex Hull, Solidity, tính MAD z-score và tạo PatchBank</p>
+        </div>
+        <button type="button" class="btn btn-success btn-lg px-4" id="btnTrain" onclick="startTraining()">
+          <i class="bi bi-cpu me-1"></i> Bắt đầu Huấn Luyện
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Training Progress & Metrics Output -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title fw-bold mb-0"><i class="bi bi-activity text-primary me-2"></i>Kết Quả & Thông Số Mô Hình</h5>
+      </div>
+      <div class="card-body" id="resultContainer">
+        <div class="text-center py-5 text-muted" id="emptyPlaceholder">
+          <i class="bi bi-cpu fs-1 d-block mb-3 text-secondary"></i>
+          <h5>Chưa có dữ liệu huấn luyện mới</h5>
+          <p class="small">Chọn dataset, tải ảnh lên và bấm <strong>"Bắt đầu Huấn Luyện"</strong> để xem kết quả đánh giá (AUC, Precision, Recall, F1).</p>
+        </div>
+
+        <div id="loadingIndicator" class="text-center py-5 d-none">
+          <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+          <h5>Đang xử lý mô hình bằng Python OpenCV...</h5>
+          <p class="text-muted small">Đang trích xuất Convex Hull, tính toán ma trận tương đồng ô (PatchBank) và phân vị z-score.</p>
+        </div>
+
+        <div id="metricsCard" class="d-none">
+          <div class="alert alert-success d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-check-circle-fill fs-4"></i>
+            <div>
+              <strong>Huấn luyện thành công!</strong>
+              <div class="small" id="metricsSubtitle"></div>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3 text-center">
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <small class="text-muted">PRECISION</small>
+                <h4 class="fw-bold text-primary mb-0" id="resPrecision">--</h4>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <small class="text-muted">RECALL</small>
+                <h4 class="fw-bold text-success mb-0" id="resRecall">--</h4>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <small class="text-muted">F1-SCORE</small>
+                <h4 class="fw-bold text-warning mb-0" id="resF1">--</h4>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <small class="text-muted">TỔNG ẢNH HỌC</small>
+                <h4 class="fw-bold text-dark mb-0" id="resTotal">--</h4>
+              </div>
+            </div>
+          </div>
+
+          <h6 class="fw-bold mt-4 mb-2">Thông số chuẩn hóa Z-Score (Median & Scale):</h6>
+          <div class="table-responsive small">
+            <table class="table table-bordered table-sm">
+              <thead class="table-light">
+                <tr><th>Đặc trưng</th><th>Median (Kỳ vọng)</th><th>Scale (Độ tản mạn)</th></tr>
+              </thead>
+              <tbody id="calibrationTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let okFilesStore = [];
+  let defectFilesStore = [];
+
+  function handleFileSelect(type, input) {
+    const files = Array.from(input.files);
+    if (type === 'ok') {
+      okFilesStore = files;
+      document.getElementById('okCountBadge').innerText = `${files.length} đã chọn ${files.length >= 7 ? '✓' : '(cần ≥ 7)'}`;
+      renderPreview('ok', files);
+    } else {
+      defectFilesStore = files;
+      document.getElementById('defectCountBadge').innerText = `${files.length} đã chọn ${files.length >= 5 ? '✓' : '(cần ≥ 5)'}`;
+      renderPreview('defect', files);
+    }
+  }
+
+  function renderPreview(type, files) {
+    const grid = document.getElementById(type === 'ok' ? 'okPreviewGrid' : 'defectPreviewGrid');
+    grid.innerHTML = '';
+    files.slice(0, 12).forEach(f => {
+      const item = document.createElement('div');
+      item.className = 'preview-item';
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      item.appendChild(img);
+      grid.appendChild(item);
+    });
+  }
+
+  function resetUploadForm() {
+    okFilesStore = [];
+    defectFilesStore = [];
+    document.getElementById('okFileInput').value = '';
+    document.getElementById('defectFileInput').value = '';
+    document.getElementById('okPreviewGrid').innerHTML = '';
+    document.getElementById('defectPreviewGrid').innerHTML = '';
+    document.getElementById('okCountBadge').innerText = '0 đã chọn (cần ≥ 7)';
+    document.getElementById('defectCountBadge').innerText = '0 đã chọn (cần ≥ 5)';
+  }
+
+  async function uploadImages() {
+    const datasetId = document.getElementById('datasetSelect').value;
+    if (okFilesStore.length === 0 && defectFilesStore.length === 0) {
+      alert('Vui lòng chọn ảnh trước khi bấm tải lên!');
+      return;
+    }
+
+    const formData = new FormData();
+    okFilesStore.forEach(f => formData.append('ok_images', f));
+    defectFilesStore.forEach(f => formData.append('defect_images', f));
+
+    const btn = document.getElementById('btnUpload');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang tải...';
+
+    try {
+      const res = await fetch(`/training/api/${datasetId}/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      alert(`${data.message}\nHiện có: ${data.counts.ok_count} OK, ${data.counts.defect_count} Defect`);
+    } catch (err) {
+      alert('Lỗi tải ảnh: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-upload me-1"></i> 1. Tải Lên Server';
+    }
+  }
+
+  async function startTraining() {
+    const datasetId = document.getElementById('datasetSelect').value;
+    
+    document.getElementById('emptyPlaceholder').classList.add('d-none');
+    document.getElementById('metricsCard').classList.add('d-none');
+    document.getElementById('loadingIndicator').classList.remove('d-none');
+    document.getElementById('btnTrain').disabled = true;
+
+    try {
+      const res = await fetch(`/training/api/${datasetId}/train`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      // Render metrics
+      const m = data.metrics || {};
+      document.getElementById('resPrecision').innerText = (m.precision * 100).toFixed(1) + '%';
+      document.getElementById('resRecall').innerText = (m.recall * 100).toFixed(1) + '%';
+      document.getElementById('resF1').innerText = (m.f1 * 100).toFixed(1) + '%';
+      document.getElementById('resTotal').innerText = `${m.total_ok} OK / ${m.total_defect} Defect`;
+
+      // Render Calibration Table
+      const cal = data.calibration || {};
+      const tbody = document.getElementById('calibrationTableBody');
+      tbody.innerHTML = '';
+      for (const [k, v] of Object.entries(cal)) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><strong>${k}</strong></td><td>${v.median.toFixed(4)}</td><td>${v.scale.toFixed(4)}</td>`;
+        tbody.appendChild(tr);
+      }
+
+      document.getElementById('loadingIndicator').classList.add('d-none');
+      document.getElementById('metricsCard').classList.remove('d-none');
+    } catch (err) {
+      alert('Lỗi huấn luyện: ' + err.message);
+      document.getElementById('loadingIndicator').classList.add('d-none');
+      document.getElementById('emptyPlaceholder').classList.remove('d-none');
+    } finally {
+      document.getElementById('btnTrain').disabled = false;
+    }
+  }
+</script>

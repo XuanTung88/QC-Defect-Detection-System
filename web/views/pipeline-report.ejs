@@ -1,0 +1,297 @@
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/pipeline"><i class="bi bi-diagram-3 me-1"></i>Pipeline</a></li>
+    <li class="breadcrumb-item"><a href="/pipeline/<%= dataset.id %>"><%= dataset.name %></a></li>
+    <li class="breadcrumb-item active">Output Bước 4 (Report &amp; Table)</li>
+  </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">
+      <i class="bi bi-clipboard-data me-2 text-danger"></i>Output Bước 4: Report &amp; Bảng Tổng Hợp (<span class="text-capitalize"><%= dataset.name %></span>)
+    </h2>
+    <p class="text-muted mb-0">
+      Phân tích lỗi <code>report_figs.py</code> (FN / FP / TP) và Bảng tổng hợp báo cáo <code>make_table.py</code> (<code>summary_all.md</code>)
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/pipeline/<%= dataset.id %>/annotated-v2" class="btn btn-outline-warning btn-sm text-dark">
+      <i class="bi bi-images me-1"></i>Xem Annotated v2
+    </a>
+    <a href="/pipeline/<%= dataset.id %>/download/summary_md" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-download me-1"></i>Tải summary_all.md
+    </a>
+    <a href="/pipeline/<%= dataset.id %>" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Quay lại Pipeline
+    </a>
+  </div>
+</div>
+
+<!-- PHẦN 1: Confusion Matrix & Stats cho dataset hiện tại -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-success"><%= tpList.length %></div>
+      <div class="small text-muted">TP (Lỗi bắt đúng)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2 border-start border-danger border-3">
+      <div class="fw-bold fs-4 text-danger"><%= fnList.length %></div>
+      <div class="small text-muted">FN (Lỗi bị sót)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2 border-start border-warning border-3">
+      <div class="fw-bold fs-4 text-warning"><%= fpList.length %></div>
+      <div class="small text-muted">FP (Đạt báo nhầm)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-secondary"><%= tnList.length %></div>
+      <div class="small text-muted">TN (Đạt đúng)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-primary"><%= (recall * 100).toFixed(1) %>%</div>
+      <div class="small text-muted">Recall (FPR 10%)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card border-0 shadow-sm text-center py-2">
+      <div class="fw-bold fs-4 text-info"><%= (precision * 100).toFixed(1) %>%</div>
+      <div class="small text-muted">Precision</div>
+    </div>
+  </div>
+</div>
+
+<!-- Ảnh ghép errors_<dataset>.png -->
+<% if (errorsFigUrl) { %>
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-images me-2"></i>Ảnh Ghép Phân Tích Lỗi (<code>errors_<%= dataset.name %>.png</code>)</span>
+    <span class="small">Phương pháp: <strong><%= bestMethod %></strong> &bull; Ngưỡng FPR 10%: <strong><%= thr !== null ? thr.toFixed(4) : '—' %></strong></span>
+  </div>
+  <div class="card-body text-center p-2 bg-dark">
+    <img src="<%= errorsFigUrl %>" class="img-fluid rounded" style="max-height:520px;cursor:pointer" onclick="openImgModal(this.src)">
+  </div>
+</div>
+<% } %>
+
+<!-- Bảng/Gallery chi tiết từng nhóm FN / FP / TP -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white">
+    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active fw-semibold text-danger" data-bs-toggle="tab" data-bs-target="#tab-fn" type="button">
+          <i class="bi bi-exclamation-octagon me-1"></i>Ảnh Lỗi Bị Sót - FN (<%= fnList.length %>)
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-semibold text-warning" data-bs-toggle="tab" data-bs-target="#tab-fp" type="button">
+          <i class="bi bi-exclamation-triangle me-1"></i>Ảnh Đạt Báo Nhầm - FP (<%= fpList.length %>)
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-semibold text-success" data-bs-toggle="tab" data-bs-target="#tab-tp" type="button">
+          <i class="bi bi-check-circle me-1"></i>Ảnh Lỗi Bắt Đúng - TP (<%= tpList.length %>)
+        </button>
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      <!-- Tab FN -->
+      <div class="tab-pane fade show active" id="tab-fn">
+        <% if (fnList.length === 0) { %>
+          <p class="text-success mb-0"><i class="bi bi-check2-all me-1"></i>Không có ảnh lỗi nào bị sót (FN = 0)!</p>
+        <% } else { %>
+          <div class="row g-3">
+            <% fnList.forEach(item => { %>
+            <div class="col-6 col-sm-4 col-md-3 col-xl-2">
+              <div class="card h-100 border-danger shadow-sm">
+                <img src="<%= item.imgUrl %>" class="card-img-top bg-dark" style="height:140px;object-fit:contain;cursor:pointer" onclick="openImgModal(this.src)">
+                <div class="card-body p-2 small">
+                  <div class="fw-bold text-truncate" title="<%= item.file %>"><%= item.file %></div>
+                  <div class="text-danger">Score: <strong><%= item.score.toFixed(4) %></strong> &le; <%= thr.toFixed(4) %></div>
+                </div>
+              </div>
+            </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Tab FP -->
+      <div class="tab-pane fade" id="tab-fp">
+        <% if (fpList.length === 0) { %>
+          <p class="text-success mb-0"><i class="bi bi-check2-all me-1"></i>Không có ảnh đạt nào bị báo nhầm (FP = 0)!</p>
+        <% } else { %>
+          <div class="row g-3">
+            <% fpList.forEach(item => { %>
+            <div class="col-6 col-sm-4 col-md-3 col-xl-2">
+              <div class="card h-100 border-warning shadow-sm">
+                <img src="<%= item.imgUrl %>" class="card-img-top bg-dark" style="height:140px;object-fit:contain;cursor:pointer" onclick="openImgModal(this.src)">
+                <div class="card-body p-2 small">
+                  <div class="fw-bold text-truncate" title="<%= item.file %>"><%= item.file %></div>
+                  <div class="text-warning text-dark">Score: <strong><%= item.score.toFixed(4) %></strong> &gt; <%= thr.toFixed(4) %></div>
+                </div>
+              </div>
+            </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Tab TP -->
+      <div class="tab-pane fade" id="tab-tp">
+        <% if (tpList.length === 0) { %>
+          <p class="text-muted mb-0">Không có ảnh TP nào.</p>
+        <% } else { %>
+          <div class="row g-3">
+            <% tpList.forEach(item => { %>
+            <div class="col-6 col-sm-4 col-md-3 col-xl-2">
+              <div class="card h-100 border-success shadow-sm">
+                <img src="<%= item.imgUrl %>" class="card-img-top bg-dark" style="height:140px;object-fit:contain;cursor:pointer" onclick="openImgModal(this.src)">
+                <div class="card-body p-2 small">
+                  <div class="fw-bold text-truncate" title="<%= item.file %>"><%= item.file %></div>
+                  <div class="text-success">Score: <strong><%= item.score.toFixed(4) %></strong></div>
+                </div>
+              </div>
+            </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PHẦN 2: BẢNG TỔNG HỢP KẾT QUẢ (make_table.py / summary_all.md) -->
+<h4 class="fw-bold mb-3"><i class="bi bi-table me-2 text-primary"></i>Bảng Tổng Hợp Kết Quả Báo Cáo (<code>make_table.py</code>)</h4>
+
+<div class="row g-4 mb-4">
+  <!-- Bảng 1: Cơ sở (one-class) -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-primary text-white fw-semibold">
+        Bảng 1: Cơ sở (đặc trưng giáo trình, hiệu chuẩn một lớp - Evaluate)
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Bộ dữ liệu</th>
+                <th>OK / Defect</th>
+                <th>AUC hình dạng</th>
+                <th>AUC bề mặt</th>
+                <th>AUC tất cả</th>
+                <th>Recall (k=3)</th>
+                <th>FPR (k=3)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (baseTableRows.length === 0) { %>
+                <tr><td colspan="7" class="text-center text-muted py-3">Chưa có dữ liệu summary_*.json</td></tr>
+              <% } else baseTableRows.forEach(row => { %>
+                <tr class="<%= row.dataset === dataset.name ? 'table-info fw-semibold' : '' %>">
+                  <td class="text-capitalize"><strong><%= row.dataset %></strong> <%= row.dataset === dataset.name ? '★' : '' %></td>
+                  <td><%= row.n_ok %> / <%= row.n_defect %></td>
+                  <td><%= row.auc_shape !== null ? row.auc_shape.toFixed(3) : '—' %></td>
+                  <td><%= row.auc_surface !== null ? row.auc_surface.toFixed(3) : '—' %></td>
+                  <td class="text-primary fw-bold"><%= row.auc_all !== null ? row.auc_all.toFixed(3) : '—' %></td>
+                  <td><%= row.recall !== null ? row.recall.toFixed(2) : '—' %></td>
+                  <td><%= row.fpr !== null ? row.fpr.toFixed(2) : '—' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bảng 2: Nâng cao (cross-val 5 phương pháp) -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-warning text-dark fw-semibold">
+        Bảng 2: Nâng cao (kiểm tra chéo - Benchmark): AUC / Recall@FPR10%
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Bộ dữ liệu</th>
+                <% benchMethods.forEach(m => { %>
+                  <th><code><%= m %></code></th>
+                <% }) %>
+                <th>Tốt nhất</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (benchTableRows.length === 0) { %>
+                <tr><td colspan="<%= benchMethods.length + 2 %>" class="text-center text-muted py-3">Chưa có dữ liệu benchmark_*.json</td></tr>
+              <% } else benchTableRows.forEach(row => { %>
+                <tr class="<%= row.dataset === dataset.name ? 'table-warning' : '' %>">
+                  <td class="text-capitalize"><strong><%= row.dataset %></strong> <%= row.dataset === dataset.name ? '★' : '' %></td>
+                  <% benchMethods.forEach(m => { %>
+                    <% const md = row.methods[m]; %>
+                    <td class="<%= row.annot_method === m ? 'fw-bold text-success' : '' %>">
+                      <% if (md && md.auc && md.tpr10) { %>
+                        <%= md.auc[0].toFixed(3) %> / <%= md.tpr10[0].toFixed(2) %>
+                      <% } else { %>—<% } %>
+                    </td>
+                  <% }) %>
+                  <td><span class="badge bg-success"><%= row.annot_method %></span></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer bg-white small text-muted">
+        Mỗi ô hiển thị: <strong>AUC / Recall@FPR10%</strong>. Dấu ★ là bộ dữ liệu đang xem.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Markdown raw summary_all.md nếu có -->
+<% if (summaryMd) { %>
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-markdown me-2"></i>Nội dung file <code>outputs/summary_all.md</code></span>
+    <button class="btn btn-sm btn-outline-secondary" onclick="copyMd()"><i class="bi bi-clipboard me-1"></i>Copy Markdown</button>
+  </div>
+  <div class="card-body p-2">
+    <pre id="mdContent" class="bg-light p-3 rounded small mb-0"><%= summaryMd %></pre>
+  </div>
+</div>
+<% } %>
+
+<!-- Modal phóng to ảnh -->
+<div class="modal fade" id="figModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body text-center p-2"><img id="figModalImg" src="" class="img-fluid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openImgModal(src) {
+  document.getElementById('figModalImg').src = src;
+  new bootstrap.Modal(document.getElementById('figModal')).show();
+}
+function copyMd() {
+  const txt = document.getElementById('mdContent')?.innerText || '';
+  navigator.clipboard.writeText(txt).then(() => alert('Đã copy nội dung summary_all.md!'));
+}
+</script>

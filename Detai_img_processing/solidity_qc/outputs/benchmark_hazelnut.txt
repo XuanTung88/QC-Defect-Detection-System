@@ -1,0 +1,22 @@
+=== hazelnut | Chinh: loi be mat (nut, lo, cat) + hinh dang ===
+Anh ok=22, defect=17 | 5-fold x 10 lan lap | 153 o/anh trung binh
+
+Phuong phap       AUC            Recall@FPR5%  Recall@FPR10%  Recall@FPR20%  Precision@FPR10%
+baseline_maxz     0.828 +- 0.016   0.46          0.58           0.69           0.77
+patch_knn         0.981 +- 0.005   0.89          0.91           0.97           0.84
+sup_G_lr          0.825 +- 0.023   0.59          0.66           0.73           0.79
+sup_GS_lr         0.947 +- 0.017   0.79          0.87           0.91           0.83
+sup_GAS_rf        0.964 +- 0.007   0.82          0.86           0.94           0.83
+
+Recall@FPR10% = ty le anh loi bat duoc khi cho phep bao nham 10% anh dat (nguong lay tu diem anh dat).
+Moi so la trung binh tren cac lan chia; khong co phuong phap nao duoc dung nhan loi cua anh kiem tra de huan luyen.
+
+Top dac trung quan trong (rung ngau nhien, chi de dien giai):
+  mean_min_rel       0.151
+  p_max              0.148
+  p_top5             0.145
+  p_p90              0.130
+  mean_a_std         0.128
+  edge_density       0.082
+  mean_b_std         0.039
+  p_mean             0.032

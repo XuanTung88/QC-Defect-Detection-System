@@ -1,0 +1,17 @@
+=== pills | Doi chung: loi tinh te, ky thuat co dien kho bat ===
+Anh ok=26, defect=26 | hieu chuan=16 anh ok/lan, kiem tra=10 ok + 26 defect | 30 lan chia | k=3.0
+
+AUC theo tung dac trung (0.5 = doan mo, 1.0 = tach hoan toan):
+  solidity       0.891 +- 0.025
+  circularity    0.859 +- 0.020
+  edge_density   0.487 +- 0.049
+  sobel_mean     0.713 +- 0.050
+  gray_std       0.642 +- 0.066
+  hist_dist      0.645 +- 0.077
+
+Bo dac trung (diem = max z):   AUC            precision  recall   F1      FPR
+  shape                         0.867 +- 0.025   0.98       0.75     0.85    0.05
+  surface                       0.596 +- 0.086   0.88       0.24     0.37    0.11
+  all                           0.879 +- 0.028   0.93       0.81     0.87    0.16
+
+Luu y: ket qua la trung binh tren nhieu lan chia ngau nhien; du lieu it nen do lech chuan van lon.
